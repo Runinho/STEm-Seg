@@ -1,9 +1,12 @@
 import os
+from pathlib import Path
+from typing import Dict, Union, List
+
 import yaml
 
 
 class YamlConfig(dict):
-    def __init__(self, d, scope):
+    def __init__(self, d: Dict, scope):
         self.__immutable = False
         self.__scope = scope
         super(self.__class__, self).__init__()
@@ -14,7 +17,7 @@ class YamlConfig(dict):
             else:
                 self.__setattr__(k, v)
 
-        self.__immutable = True  # prevents changes being made at runtime
+        self.__immutable = True  # prevent changes at runtime
 
     @property
     def scope(self):
@@ -26,16 +29,29 @@ class YamlConfig(dict):
             raise ValueError("No attribute named '%s' found in config scope '%s'" % (item, self.__scope))
         return attr
 
-    def __setattr__(self, key, value):
-        if self.__immutable and key != '_' + self.__class__.__name__ + '__immutable':
+    def enforce_immutable(self, key):
+        print(key)
+        # whitelist __immutable
+        if key == '_' + self.__class__.__name__ + '__immutable':
+            return
+
+        if self.__immutable:
             raise ValueError("The config is immutable and cannot be modified")
 
+    def allow_immutable(func):
+        """decorator to override immutability"""
+        def call(self, *args, **kwargs):
+            self.__immutable = False
+            ret = func(self, *args, **kwargs)
+            self.__immutable = True
+        return call
+
+    def __setattr__(self, key, value):
+        self.enforce_immutable(key)
         return self.__setitem__(key, value)
 
     def __setitem__(self, key, value):
-        if self.__immutable and key != '_' + self.__class__.__name__ + '__immutable':
-            raise ValueError("The config is immutable and cannot be modified")
-
+        self.enforce_immutable(key)
         return super(self.__class__, self).__setitem__(key, value)
 
     def __str__(self):
@@ -59,8 +75,8 @@ class YamlConfig(dict):
                 s = s + k + ": " + str(v) + "\n"
         return s
 
-    def merge_with(self, opts, strict=True, verbose=False):
-        self.__immutable = False
+    @allow_immutable
+    def merge_with(self, opts:Union[Dict, "YamlConfig"], strict=True, verbose=False) -> List:
         unexpected_keys = []
 
         for key, val in opts.items():
@@ -80,13 +96,13 @@ class YamlConfig(dict):
                 else:
                     self[key] = val
 
-        self.__immutable = True
         return unexpected_keys
 
-    def merge_from_file(self, path, strict=True, verbose=False):
+    def merge_from_file(self, path: Path, strict=True, verbose=False):
         other_cfg = self.__class__.load_from_file(path)
         return self.merge_with(other_cfg, strict=strict, verbose=verbose)
 
+    @allow_immutable
     def update_param(self, name, new_value):
         """
         Method to update the value of a given parameter.
@@ -100,6 +116,7 @@ class YamlConfig(dict):
         self[name] = new_value
         self.__immutable = True
 
+    @allow_immutable
     def update_from_args(self, args, verbose=False, prefix=''):
         """
         Update the values based on user input given via 'argparse.ArgumentParser'.
@@ -108,7 +125,6 @@ class YamlConfig(dict):
         :param prefix: If the arg names have some prefix attached to them, provide it here so it is parsed correctly.
         :return:
         """
-        self.__immutable = False
         for arg_name, v in vars(args).items():
             if v is None:
                 continue
@@ -122,7 +138,6 @@ class YamlConfig(dict):
                     self[k] = v
                     if verbose:
                         print("{}{} --> {}".format(self.__scope, k, v))
-        self.__immutable = True
 
     def add_args_to_parser(self, parser, recursive=False, prefix=''):
         """
@@ -163,7 +178,7 @@ class YamlConfig(dict):
 
         return parser
 
-    def d(self):
+    def d(self) -> Dict:
         """
         Converts the object instance to a standard Python dict
         :return: object instance parsed as dict
@@ -180,9 +195,10 @@ class YamlConfig(dict):
         return d
 
     @classmethod
-    def load_from_file(cls, config_file_path):
-        assert os.path.exists(config_file_path), "config file not found at given path: %s" % config_file_path
+    def load_from_file(cls, config_file_path: Path) -> YamlConfig:
+        assert config_file_path.exists(), "config file not found at given path: %s" % config_file_path
 
+        # check if we need to use yaml.FullLoader
         pyyaml_major_version = int(yaml.__version__.split('.')[0])
         pyyaml_minor_version = int(yaml.__version__.split('.')[1])
         required_loader_arg = pyyaml_major_version >= 5 and pyyaml_minor_version >= 1
@@ -197,31 +213,5 @@ class YamlConfig(dict):
         return yaml_config
 
 
-cfg = YamlConfig.load_from_file(os.path.join(os.path.dirname(__file__), 'defaults.yaml'))
-
-
-# def update_cfg(cfg_name='', args=None, prefix_subcfg_list=(), verbose=True):
-#     """
-#     Updates the cfg according to model-specific and user-provided options.
-#     config hierarchy is as follows (from least to most priority):
-#     1) values given in 'defaults.yaml'
-#     2) values given in the model specific yaml config file
-#     3) user provided values
-#     :param cfg_name: A string
-#     :param args: as given by Argparser.ArgumentParser.parse_args()
-#     :param prefix_subcfg_list: list of tuple(str, cfg...)
-#     :param verbose
-#     :return None
-#     """
-#     if cfg_name:
-#         model_specific_cfg = ModelConfigPaths.get(cfg_name)
-#         if verbose:
-#             print("Updating cfg from model specific config file '{}'".format(model_specific_cfg))
-#         cfg.merge_from_file(model_specific_cfg, verbose=verbose)
-#
-#     if args is not None:
-#         if verbose:
-#             print("Updating cfg from user-provided arguments")
-#         assert prefix_subcfg_list
-#         for prefix, subcfg in prefix_subcfg_list:
-#             subcfg.update_from_args(args, prefix=prefix, verbose=verbose)
+# Init global cfg object with the values in defaults.yaml
+cfg = YamlConfig.load_from_file(Path(__file__).parent / 'defaults.yaml')
