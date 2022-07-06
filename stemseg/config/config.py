@@ -30,7 +30,6 @@ class YamlConfig(dict):
         return attr
 
     def enforce_immutable(self, key):
-        print(key)
         # whitelist __immutable
         if key == '_' + self.__class__.__name__ + '__immutable':
             return
@@ -44,6 +43,7 @@ class YamlConfig(dict):
             self.__immutable = False
             ret = func(self, *args, **kwargs)
             self.__immutable = True
+            return ret
         return call
 
     def __setattr__(self, key, value):
@@ -195,7 +195,7 @@ class YamlConfig(dict):
         return d
 
     @classmethod
-    def load_from_file(cls, config_file_path: Path) -> YamlConfig:
+    def load_from_file(cls, config_file_path: Path) -> "YamlConfig":
         assert config_file_path.exists(), "config file not found at given path: %s" % config_file_path
 
         # check if we need to use yaml.FullLoader
