@@ -1,12 +1,16 @@
+from pathlib import Path
+from typing import List, Tuple, Dict, Iterable
+
 from pycocotools import mask as masktools
 
 import cv2
 import json
 import numpy as np
+import numpy.typing as npt
 import os
 
 
-def parse_generic_video_dataset(base_dir, dataset_json):
+def parse_generic_video_dataset(base_dir: Path, dataset_json: Path) -> Tuple[List['GenericVideoSequence'], Dict]:
     with open(dataset_json, 'r') as fh:
         dataset = json.load(fh)
 
@@ -38,6 +42,10 @@ def parse_generic_video_dataset(base_dir, dataset_json):
 
 
 class GenericVideoSequence(object):
+    """Interface to the image sequence
+    """
+
+    #TODO instead of dict we could use kwargs. which would make the interface much nicer (Better for the IDE) :D
     def __init__(self, seq_dict, base_dir):
         self.base_dir = base_dir
         self.image_paths = seq_dict["image_paths"]
@@ -64,6 +72,7 @@ class GenericVideoSequence(object):
 
         images = []
         for t in frame_idxes:
+            # TODO: why do we use cv2 to read images?
             im = cv2.imread(os.path.join(self.base_dir, self.image_paths[t]), cv2.IMREAD_COLOR)
             if im is None:
                 raise ValueError("No image found at path: {}".format(os.path.join(self.base_dir, self.image_paths[t])))
@@ -71,7 +80,8 @@ class GenericVideoSequence(object):
 
         return images
 
-    def load_masks(self, frame_idxes=None):
+    def load_masks(self, frame_idxes=None) -> List[npt.NDArray[np.uint8]]:
+        # None returns all
         if frame_idxes is None:
             frame_idxes = list(range(len(self.image_paths)))
 
@@ -93,7 +103,7 @@ class GenericVideoSequence(object):
 
         return masks
 
-    def filter_categories(self, cat_ids_to_keep):
+    def filter_categories(self, cat_ids_to_keep: Iterable):
         instance_ids_to_keep = sorted([iid for iid, cat_id in self.instance_categories.items() if iid in cat_ids_to_keep])
         for t in range(len(self)):
             self.segmentations[t] = {iid: seg for iid, seg in self.segmentations[t].items() if iid in instance_ids_to_keep}
@@ -103,14 +113,17 @@ class GenericVideoSequence(object):
         self.image_paths = [self.image_paths[t] for t in t_to_keep]
         self.segmentations = [self.segmentations[t] for t in t_to_keep]
 
-    def apply_category_id_mapping(self, mapping):
+    def apply_category_id_mapping(self, mapping:Dict):
         assert set(mapping.keys()) == set(self.instance_categories.keys())
         self.instance_categories = {
             iid: mapping[current_cat_id] for iid, current_cat_id in self.instance_categories.items()
         }
 
-    def extract_subsequence(self, frame_idxes, new_id=""):
+    def extract_subsequence(self, frame_idxes, new_id="") -> 'GenericVideoSequence':
+        # check if frame_idxes are in range
         assert all([t in range(len(self)) for t in frame_idxes])
+
+        # filter the data
         instance_ids_to_keep = set(sum([list(self.segmentations[t].keys()) for t in frame_idxes], []))
 
         subseq_dict = {
@@ -132,20 +145,28 @@ class GenericVideoSequence(object):
 
 
 def visualize_generic_dataset(base_dir, dataset_json):
+    """show some images from the dataset
+
+    press `q` to stop the program from displaying next image
+    """
     from stemseg.utils.vis import overlay_mask_on_image, create_color_map
 
     seqs, meta_info = parse_generic_video_dataset(base_dir, dataset_json)
     category_names = meta_info["category_labels"]
 
     cmap = create_color_map().tolist()
+
+    print("Press `q` to end program")
     cv2.namedWindow('Image', cv2.WINDOW_NORMAL)
 
     for seq in seqs:
+        # which images to load
         if len(seq) > 100:
             frame_idxes = list(range(100, 150))
         else:
             frame_idxes = None
 
+        #load images and mask
         images = seq.load_images(frame_idxes)
         masks = seq.load_masks(frame_idxes)
         category_labels = seq.category_labels
@@ -164,5 +185,6 @@ def visualize_generic_dataset(base_dir, dataset_json):
             color_key_printed = True
 
             cv2.imshow('Image', image_t)
+            #wait for key `113` which is a `q`
             if cv2.waitKey(0) == 113:
                 exit(0)

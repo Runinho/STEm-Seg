@@ -1,5 +1,7 @@
 from argparse import ArgumentParser
 from collections import defaultdict
+from pathlib import Path
+
 from tqdm import tqdm
 
 from stemseg.config import cfg
@@ -116,11 +118,16 @@ class TrackGenerator(object):
             print("Performing inference for sequence {}/{}".format(i + 1, len(self.sequences)))
             self.process_sequence(sequence, self.max_tracks[i])
 
-        print("----------------------------------------------------")
-        print("Model inference speed: {:.3f} fps".format(self.total_frames_processed / Timer.get_duration("inference")))
-        print("Clustering and postprocessing speed: {:.3f} fps".format(self.total_frames_processed / Timer.get_duration("postprocessing")))
-        print("Overall speed: {:.3f} fps".format(self.total_frames_processed / Timer.get_durations_sum()))
-        print("----------------------------------------------------")
+        try:
+            print("----------------------------------------------------")
+            print("Model inference speed: {:.3f} fps".format(self.total_frames_processed / Timer.get_duration("inference")))
+            print("Clustering and postprocessing speed: {:.3f} fps".format(self.total_frames_processed / Timer.get_duration("postprocessing")))
+            print("Overall speed: {:.3f} fps".format(self.total_frames_processed / Timer.get_durations_sum()))
+            print("----------------------------------------------------")
+        except ZeroDivisionError as r:
+            print("----------------------------------------------------")
+            print("failed to print because of zero devision")
+            print("----------------------------------------------------")
 
     def process_sequence(self, sequence, max_tracks):
         embeddings, fg_masks, multiclass_masks = self.do_inference(sequence)
@@ -171,20 +178,22 @@ class TrackGenerator(object):
 
 
 def configure_directories(args):
-    output_dir = args.output_dir
-    if not output_dir:
-        output_dir = os.path.join(os.path.dirname(args.model_path), "inference")
+    if not args.output_dir:
+        output_dir = Path(args.model_path).parent / "inference"
+    else:
+        output_dir = Path(args.output_dir)
 
-    if not os.path.isabs(output_dir):
-        output_dir = os.path.join(os.path.dirname(args.model_path), output_dir)
+    # WTF that would be not my expected behaviour :D
+    if not output_dir.is_absolute():
+        output_dir = Path(args.model_path).parent / output_dir
 
-    os.makedirs(output_dir, exist_ok=True)
+    output_dir.mkdir(parents=True, exist_ok=True)
     return output_dir
 
 
 def load_cfg(args):
-    cfg_file = os.path.join(os.path.dirname(args.model_path), 'config.yaml')
-    if not os.path.exists(cfg_file):
+    cfg_file = Path(args.model_path).parent / 'config.yaml'
+    if not cfg_file.exists():
         dataset_cfgs = {
             "davis": "davis_2.yaml",
             "ytvis": "youtube_vis.yaml",
@@ -192,7 +201,7 @@ def load_cfg(args):
         }
         assert args.dataset in dataset_cfgs, \
             "Invalid '--dataset' argument. Should be either 'davis', 'ytvis' or 'kittimots'"
-        cfg_file = os.path.join(RepoPaths.configs_dir(), dataset_cfgs[args.dataset])
+        cfg_file = RepoPaths.configs_dir() / dataset_cfgs[args.dataset]
 
     print("Loading config from {}".format(cfg_file))
     cfg.merge_from_file(cfg_file)
@@ -227,6 +236,7 @@ def configure_input_dims(args):
 
 
 def main(args):
+    print(args)
     # update cfg according to backbone choice
     load_cfg(args)
 
@@ -237,6 +247,7 @@ def main(args):
     configure_input_dims(args)
 
     output_dir = configure_directories(args)
+    #TODO: why is this not part of the config?
     preload_images = True
 
     cluster_full_scale = cfg.TRAINING.LOSS_AT_FULL_RES or args.resize_embeddings
@@ -306,5 +317,6 @@ if __name__ == '__main__':
     parser.add_argument('--clustering_device', default="cuda:0")
 
     parser.add_argument('--save_vis',      action='store_true')
+
 
     main(parser.parse_args())

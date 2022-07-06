@@ -53,8 +53,8 @@ class GlobalRegistry(object):
         return register.add(obj_name, obj)
 
     def _do_register(self, name, obj):
-        assert (name not in self._obj_map), \
-            "An object named '{}' was already registered in '{}' registry!".format(name, self._name)
+        if name in self._obj_map:
+            print("WARNING: An object named '{}' was already registered in '{}' registry!".format(name, self._name))
         self._obj_map[name] = obj
 
     def add(self, name=None, obj=None):

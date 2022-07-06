@@ -1,5 +1,5 @@
 import os
-
+from pathlib import Path
 
 mode_to_config_mapping = {
     "davis": "davis",
@@ -52,8 +52,8 @@ class RepoPaths(object):
 
     @staticmethod
     def dataset_meta_info_dir():
-        return os.path.realpath(os.path.join(os.path.dirname(__file__), os.pardir, 'data', 'metainfo'))
+        return Path(__file__).parent.parent / 'data' / 'metainfo'
 
     @staticmethod
     def configs_dir():
-        return os.path.realpath(os.path.join(os.path.dirname(__file__), os.pardir, 'config'))
+        return Path(__file__).parent.parent / 'config'
