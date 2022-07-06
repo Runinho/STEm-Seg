@@ -1,3 +1,4 @@
+"""load and manage image datasets"""
 from pycocotools import mask as masktools
 
 import cv2

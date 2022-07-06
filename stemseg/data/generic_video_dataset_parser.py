@@ -1,18 +1,53 @@
-from pathlib import Path
+"""load and manage video datasets"""
+
+import json
+import os
 from typing import List, Tuple, Dict, Iterable
 
-from pycocotools import mask as masktools
-
 import cv2
-import json
 import numpy as np
 import numpy.typing as npt
-import os
+from PIL import Image
+from pycocotools import mask as masktools
 
 
-def parse_generic_video_dataset(base_dir: Path, dataset_json: Path) -> Tuple[List['GenericVideoSequence'], Dict]:
-    with open(dataset_json, 'r') as fh:
-        dataset = json.load(fh)
+def parse_generic_video_dataset(base_dir, dataset_json) -> Tuple[
+    List['GenericVideoSequence'], Dict]:
+    """create dataset from dataset json
+
+    Args:
+        base_dir (Path): location of the data
+        dataset_json (Path): location of the json file containing the labels and dataset information
+
+    Returns:
+        Tuple[List[GenericVideoSequence], Dict]:
+            - seqs (list): list of GenericVideoSequence
+            - meta_info (dict): information about the dataset
+
+    Examples:
+        Load KITTIMOTS dataset
+
+        >>> parse_generic_video_dataset(KITTIMOTSPaths.train_images_dir(),
+        >>>                             KITTIMOTSPaths.val_vds_file())
+        ([GenericVideoSequence(id:0002, len:233),
+          GenericVideoSequence(id:0006, len:270),
+          GenericVideoSequence(id:0007, len:800),
+          GenericVideoSequence(id:0008, len:390),
+          GenericVideoSequence(id:0010, len:294),
+          GenericVideoSequence(id:0013, len:340),
+          GenericVideoSequence(id:0014, len:106),
+          GenericVideoSequence(id:0016, len:209),
+          GenericVideoSequence(id:0018, len:339)],
+         {'name': 'kitti_mots_val',
+          'category_labels': {1: 'car', 2: 'person', 3: 'ignore'},
+          'version': '0.1'})
+
+    Links:
+        dataset jsons can be found here:
+        https://omnomnom.vision.rwth-aachen.de/data/STEm-Seg/dataset_jsons/
+    """
+    with open(dataset_json, 'rt') as file:
+        dataset = json.load(file)
 
     meta_info = dataset["meta"]
 
@@ -32,41 +67,65 @@ def parse_generic_video_dataset(base_dir: Path, dataset_json: Path) -> Tuple[Lis
 
             # sanity check: instance IDs in "segmentations" must match those in "categories"
             seg_iids = set(sum([list(seg_t.keys()) for seg_t in seq["segmentations"]], []))
-            assert seg_iids == set(seq["categories"].keys()), "Instance ID mismatch: {} vs. {}".format(
-                seg_iids, set(seq["categories"].keys())
-            )
+            assert seg_iids == set(seq["categories"].keys()), \
+                   f"Instance ID mismatch: {seg_iids} vs. {set(seq['categories'].keys())}"
 
-    seqs = [GenericVideoSequence(seq, base_dir) for seq in dataset["sequences"]]
+    seqs = [GenericVideoSequence(base_dir, **seq) for seq in dataset["sequences"]]
 
     return seqs, meta_info
 
 
-class GenericVideoSequence(object):
-    """Interface to the image sequence
+class GenericVideoSequence:
+    """continuous image sequence
     """
 
-    #TODO instead of dict we could use kwargs. which would make the interface much nicer (Better for the IDE) :D
-    def __init__(self, seq_dict, base_dir):
-        self.base_dir = base_dir
-        self.image_paths = seq_dict["image_paths"]
-        self.image_dims = (seq_dict["height"], seq_dict["width"])
-        self.id = seq_dict["id"]
+    # TODO instead of dict we could use kwargs. which would make the interface much nicer (Better for the IDE) :D
+    def __init__(self, base_dir, image_paths, height, width, id, segmentations=None,
+                 categories=None, **kwargs):
+        """
 
-        self.segmentations = seq_dict.get("segmentations", None)
-        self.instance_categories = seq_dict.get("categories", None)
+        Args:
+            base_dir (Path): directory of the datset
+            image_paths (List): list of image paths
+            height (int): image height
+            width (int): image width
+            id: identifier of this sequence
+            segmentations (List):
+            categories (List):
+            **kwargs:
+        """
+        self.base_dir = base_dir
+        self.image_paths = image_paths
+        self.image_dims = (height, width)
+        self.id = id
+
+        self.segmentations = segmentations
+        self.instance_categories = categories
 
     @property
-    def instance_ids(self):
+    def instance_ids(self) -> List:
         return list(self.instance_categories.keys())
 
     @property
-    def category_labels(self):
+    def category_labels(self) -> Iterable:
+        """get """
         return [self.instance_categories[instance_id] for instance_id in self.instance_ids]
 
     def __len__(self):
         return len(self.image_paths)
 
-    def load_images(self, frame_idxes=None):
+    def __repr__(self):
+        return f'GenericVideoSequence(id:{self.id}, len:{len(self)})'
+
+    def load_images(self, frame_idxes=None) -> List[np.ndarray]:
+        """load images
+
+        Args:
+            frame_idxes (List[int]): image indices to load
+
+        Returns:
+            list of images as numpy arrays
+        """
         if frame_idxes is None:
             frame_idxes = list(range(len(self.image_paths)))
 
@@ -75,12 +134,13 @@ class GenericVideoSequence(object):
             # TODO: why do we use cv2 to read images?
             im = cv2.imread(os.path.join(self.base_dir, self.image_paths[t]), cv2.IMREAD_COLOR)
             if im is None:
-                raise ValueError("No image found at path: {}".format(os.path.join(self.base_dir, self.image_paths[t])))
+                raise ValueError(
+                    f"No image found at path: {os.path.join(self.base_dir, self.image_paths[t])}")
             images.append(im)
 
         return images
 
-    def load_masks(self, frame_idxes=None) -> List[npt.NDArray[np.uint8]]:
+    def load_masks(self, frame_idxes=None) -> List[List[npt.NDArray[np.uint8]]]:
         # None returns all
         if frame_idxes is None:
             frame_idxes = list(range(len(self.image_paths)))
@@ -95,7 +155,8 @@ class GenericVideoSequence(object):
                         "counts": self.segmentations[t][instance_id].encode('utf-8'),
                         "size": self.image_dims
                     }
-                    masks_t.append(np.ascontiguousarray(masktools.decode(rle_mask).astype(np.uint8)))
+                    masks_t.append(
+                        np.ascontiguousarray(masktools.decode(rle_mask).astype(np.uint8)))
                 else:
                     masks_t.append(np.zeros(self.image_dims, np.uint8))
 
@@ -104,16 +165,18 @@ class GenericVideoSequence(object):
         return masks
 
     def filter_categories(self, cat_ids_to_keep: Iterable):
-        instance_ids_to_keep = sorted([iid for iid, cat_id in self.instance_categories.items() if iid in cat_ids_to_keep])
+        instance_ids_to_keep = sorted(
+            [iid for iid, cat_id in self.instance_categories.items() if iid in cat_ids_to_keep])
         for t in range(len(self)):
-            self.segmentations[t] = {iid: seg for iid, seg in self.segmentations[t].items() if iid in instance_ids_to_keep}
+            self.segmentations[t] = {iid: seg for iid, seg in self.segmentations[t].items() if
+                                     iid in instance_ids_to_keep}
 
     def filter_zero_instance_frames(self):
         t_to_keep = [t for t in range(len(self)) if len(self.segmentations[t]) > 0]
         self.image_paths = [self.image_paths[t] for t in t_to_keep]
         self.segmentations = [self.segmentations[t] for t in t_to_keep]
 
-    def apply_category_id_mapping(self, mapping:Dict):
+    def apply_category_id_mapping(self, mapping: Dict):
         assert set(mapping.keys()) == set(self.instance_categories.keys())
         self.instance_categories = {
             iid: mapping[current_cat_id] for iid, current_cat_id in self.instance_categories.items()
@@ -124,7 +187,8 @@ class GenericVideoSequence(object):
         assert all([t in range(len(self)) for t in frame_idxes])
 
         # filter the data
-        instance_ids_to_keep = set(sum([list(self.segmentations[t].keys()) for t in frame_idxes], []))
+        instance_ids_to_keep = set(
+            sum([list(self.segmentations[t].keys()) for t in frame_idxes], []))
 
         subseq_dict = {
             "id": new_id if new_id else self.id,
@@ -143,13 +207,35 @@ class GenericVideoSequence(object):
 
         return self.__class__(subseq_dict, self.base_dir)
 
+    def dbg_load_image(self, frame_index)-> Image:
+        """load image as PIL Image
+
+        Args:
+            frame_index (int): frame index of the image to load
+
+        Returns:
+            Image:
+                image
+        """
+        img = self.load_images([frame_index])[0]
+        img = cv2.cvtColor(img, cv2.COLOR_RGB2BGR)
+        return Image.fromarray(img)
+
 
 def visualize_generic_dataset(base_dir, dataset_json):
-    """show some images from the dataset
+    """show some images from the dataset with open cv2.imshow
 
-    press `q` to stop the program from displaying next image
+    press `q` to stop the program from displaying next image.
+
+    See Also:
+        :func:`parse_generic_video_dataset` for how the data is parsed
+
+    Args:
+        base_dir (Path): location of the data
+        dataset_json (Path): location of the json file containing the labels and dataset information
     """
     from stemseg.utils.vis import overlay_mask_on_image, create_color_map
+    import os
 
     seqs, meta_info = parse_generic_video_dataset(base_dir, dataset_json)
     category_names = meta_info["category_labels"]
@@ -166,7 +252,7 @@ def visualize_generic_dataset(base_dir, dataset_json):
         else:
             frame_idxes = None
 
-        #load images and mask
+        # load images and mask
         images = seq.load_images(frame_idxes)
         masks = seq.load_masks(frame_idxes)
         category_labels = seq.category_labels
@@ -185,6 +271,6 @@ def visualize_generic_dataset(base_dir, dataset_json):
             color_key_printed = True
 
             cv2.imshow('Image', image_t)
-            #wait for key `113` which is a `q`
+            # wait for key `113` which is a `q`
             if cv2.waitKey(0) == 113:
                 exit(0)
