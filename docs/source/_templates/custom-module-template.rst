@@ -6,6 +6,7 @@
 
 .. automodule:: {{ fullname }}
     :members:
+    :special-members: __init__
     :undoc-members:
     {% if modules %}:imported-members:{% endif %}
 
