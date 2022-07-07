@@ -9,6 +9,7 @@ import random
 
 
 class YoutubeVISDataLoader(VideoDataset):
+    #TODO(Runinho): refactor code to not use dict arguments
     def __init__(self, base_dir, vds_json_file, samples_to_create,
                  apply_augmentation=False,
                  category_agnostic=True,

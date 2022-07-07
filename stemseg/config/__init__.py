@@ -1,10 +1,8 @@
 """
 configuration for the current experiment
 
-.. data:: cfg
-    :type: YamlConfig
-
-    Default configuration that is initalized from `defaults.yaml`
+Attributes:
+    cfg (YamlConfig): Default configuration that is initalized from `defaults.yaml`
 
 """
 

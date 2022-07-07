@@ -9,6 +9,7 @@ import random
 
 
 class DavisDataLoader(VideoDataset):
+    #TODO(Runinho): refactor code to not use dict arguments
     def __init__(self, base_dir, vds_json_file,
                  samples_to_create=-1,
                  apply_augmentation=False,

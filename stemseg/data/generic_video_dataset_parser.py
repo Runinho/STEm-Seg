@@ -76,23 +76,100 @@ def parse_generic_video_dataset(base_dir, dataset_json) -> Tuple[
 
 
 class GenericVideoSequence:
-    """continuous image sequence
-    """
+    """continuous image sequence"""
 
-    # TODO instead of dict we could use kwargs. which would make the interface much nicer (Better for the IDE) :D
     def __init__(self, base_dir, image_paths, height, width, id, segmentations=None,
                  categories=None, **kwargs):
-        """
+        """Stores all information to generated label and input data for a image sequence.
+
+        We use the following wording:
+
+            * **instance**: One instance of an labeled object. E.g. a specific car.
+              Can occur in multiple images.
+            * **category**: label of a segmentation mask: E.g Car, Person, ..,
+              Can have multiple instances of the same category in the same frame.
+
+        Input images are loaded from the provided ``image_paths`` in ``base_dir``.
+        Masks are encoded in ``segmentations`` and ``categories``.
+        We can access the segmentation mask for timestamp ``x`` (int) and
+        instance ``y`` (int) in the following way: ``segmentations[x][y]``.
+        Observe that we do not have a mask for each instance at every
+        timestamp. The instances are not dense, so we use a dict for the instance dimension.
+        Therefor ``segmentations`` is a list of dicts.
+        ``categories`` is a dict mapping instance ids to category ids.
+
+        Examples:
+            Construct sample masks
+
+            >>> import numpy as np
+            >>> masks = []
+            >>> for i in range(3):
+            >>>     a = np.zeros((2,4), order="F", dtype=np.uint8)
+            >>>     a[:,i] = 1
+            >>>     masks.append(a)
+            >>> masks
+            [array([[1, 0, 0, 0],
+                    [1, 0, 0, 0]], dtype=uint8),
+             array([[0, 1, 0, 0],
+                    [0, 1, 0, 0]], dtype=uint8),
+             array([[0, 0, 1, 0],
+                    [0, 0, 1, 0]], dtype=uint8)]
+
+            Masks are in the segementation format as the cocodataset_ is using.
+            We use pycocotools_ for encoding.
+
+            >>> from pycocotools import  mask
+            >>> encoded = [mask.encode(a)["counts"].decode("utf8") for a in masks]
+            >>> seq = GenericVideoSequence(base_dir="some/dir",
+            >>>                            image_paths=["1.png", "2.png"],
+            >>>                            height=2,
+            >>>                            width=4,
+            >>>                            id="some_id",
+            >>>                            categories={1: "Person", 2: "Car", 3: "Car"}
+            >>>                            segmentations=[{1:encoded[0]},
+            >>>                                           {1:encoded[1], 2:encoded[2]}])
+            >>> seq.load_masks([1])
+            [[array([[0, 1, 0, 0],
+                     [0, 1, 0, 0]], dtype=uint8),
+              array([[0, 0, 1, 0],
+                     [0, 0, 1, 0]], dtype=uint8),
+              array([[0, 0, 0, 0],
+                     [0, 0, 0, 0]], dtype=uint8)]]
+            >>> seq.load_masks([0, 1])
+            [[array([[1, 0, 0, 0],
+                     [1, 0, 0, 0]], dtype=uint8),
+              array([[0, 0, 0, 0],
+                     [0, 0, 0, 0]], dtype=uint8),
+              array([[0, 0, 0, 0],
+                     [0, 0, 0, 0]], dtype=uint8)],
+             [array([[0, 1, 0, 0],
+                     [0, 1, 0, 0]], dtype=uint8),
+              array([[0, 0, 1, 0],
+                     [0, 0, 1, 0]], dtype=uint8),
+              array([[0, 0, 0, 0],
+                     [0, 0, 0, 0]], dtype=uint8)]]
 
         Args:
-            base_dir (Path): directory of the datset
-            image_paths (List): list of image paths
-            height (int): image height
-            width (int): image width
-            id: identifier of this sequence
-            segmentations (List):
-            categories (List):
-            **kwargs:
+            base_dir (Path): Directory of the datset
+            image_paths (List): List of image paths
+            height (int): Image height
+            width (int): Image width
+            id: Identifier of this sequence
+            segmentations (List[Dict[InstanceID, str]], optional ): List of dicts containing
+                the RLE encoded masks. The length of the list expected
+                to be the same as ``image_paths``.
+            categories (Dict[InstanceID, Category], optional): Dict mapping each instance to a
+                category. The keys of this dict are used to access the masks
+                in the dicts of `segmentation`.
+            **kwargs: not used. Here for ease of use in ``parse_generic_video_dataset``.
+
+        Links:
+            RLE used for masks: https://github.com/ppwwyyxx/cocoapi
+
+        .. _pycocotools:
+            https://github.com/ppwwyyxx/cocoapi
+        .. _cocodataset:
+            https://cocodataset.org/
         """
         self.base_dir = base_dir
         self.image_paths = image_paths
@@ -104,11 +181,12 @@ class GenericVideoSequence:
 
     @property
     def instance_ids(self) -> List:
+        """list of the instance ids"""
         return list(self.instance_categories.keys())
 
     @property
     def category_labels(self) -> Iterable:
-        """get """
+        """category label for every instance"""
         return [self.instance_categories[instance_id] for instance_id in self.instance_ids]
 
     def __len__(self):
@@ -118,10 +196,11 @@ class GenericVideoSequence:
         return f'GenericVideoSequence(id:{self.id}, len:{len(self)})'
 
     def load_images(self, frame_idxes=None) -> List[np.ndarray]:
-        """load images
+        """load images for a list of frames
 
         Args:
-            frame_idxes (List[int]): image indices to load
+            frame_idxes (List[int], optional): image indices to load. If None returns all images.
+                                     Defaults to None.
 
         Returns:
             list of images as numpy arrays
@@ -141,11 +220,27 @@ class GenericVideoSequence:
         return images
 
     def load_masks(self, frame_idxes=None) -> List[List[npt.NDArray[np.uint8]]]:
+        """ load masks for a list of frames
+
+        Args:
+            frame_idxes (int, optional): Indices of masks to load. If None returns all masks for all images.
+                         Defaults to None.
+
+        Returns:
+            List[List[npt.NDArray[np.uint8]]]:
+                list of list containing the image masks as 2D numpy array for
+                every instance of categories.
+                The shape of the image masks is (height, width).
+                The first dimension is the frame indices, the second one the instance dimension.
+                The length of the returned list is the same as ``frame_idxes``.
+                The length of the lists contained in the list is the same as ``self.categories``.
+        """
         # None returns all
         if frame_idxes is None:
             frame_idxes = list(range(len(self.image_paths)))
 
         masks = []
+        # iterate over the time
         for t in frame_idxes:
             masks_t = []
 
@@ -165,6 +260,13 @@ class GenericVideoSequence:
         return masks
 
     def filter_categories(self, cat_ids_to_keep: Iterable):
+        """ remove instances from the dataset
+
+        removes all instances from the dataset that are not in `cat_ids_to_keep`.
+
+        Args:
+            cat_ids_to_keep (Iterable): instance ids to keep.
+        """
         instance_ids_to_keep = sorted(
             [iid for iid, cat_id in self.instance_categories.items() if iid in cat_ids_to_keep])
         for t in range(len(self)):
@@ -172,17 +274,48 @@ class GenericVideoSequence:
                                      iid in instance_ids_to_keep}
 
     def filter_zero_instance_frames(self):
+        """ remove all frames that contain no label"""
         t_to_keep = [t for t in range(len(self)) if len(self.segmentations[t]) > 0]
         self.image_paths = [self.image_paths[t] for t in t_to_keep]
         self.segmentations = [self.segmentations[t] for t in t_to_keep]
 
     def apply_category_id_mapping(self, mapping: Dict):
-        assert set(mapping.keys()) == set(self.instance_categories.keys())
+        """rename categories
+
+        Args:
+            mapping (Dict): Renaming mapping from old category to the new category ids.
+
+        Examples:
+            Rename categories from describtive names to ints
+
+            >>> seq  = GenericVideoSequence(base_dir="some/dir",
+            >>>                             image_paths=["1.png", "2.png"],
+            >>>                             height=128,
+            >>>                             width=256,
+            >>>                             id="some_id",
+            >>>                             categories={1: "Person", 2: "Car", 3: "Car"})
+            >>> (seq.instance_ids, seq.category_labels)
+            ([1, 2, 3], ['Person', 'Car', 'Car'])
+            >>> seq.apply_category_id_mapping({"Person":11, "Car":22})
+            >>> (seq.instance_ids, seq.category_labels)
+            ([1, 2, 3], [11, 22, 22])
+        """
+        assert set(mapping.keys()) == set(self.instance_categories.values())
         self.instance_categories = {
             iid: mapping[current_cat_id] for iid, current_cat_id in self.instance_categories.items()
         }
 
     def extract_subsequence(self, frame_idxes, new_id="") -> 'GenericVideoSequence':
+        """extract subsequence for a list of frames
+
+        Args:
+            frame_idxes: frames to be included in the returned Sequence
+            new_id: id of the extracted Subsequence
+
+        Returns:
+            GenericVideoSequence:
+                sequence only containing the images from indices ``frame_idxes`` with id ``new_id``
+        """
         # check if frame_idxes are in range
         assert all([t in range(len(self)) for t in frame_idxes])
 
@@ -190,22 +323,21 @@ class GenericVideoSequence:
         instance_ids_to_keep = set(
             sum([list(self.segmentations[t].keys()) for t in frame_idxes], []))
 
-        subseq_dict = {
-            "id": new_id if new_id else self.id,
-            "height": self.image_dims[0],
-            "width": self.image_dims[1],
-            "image_paths": [self.image_paths[t] for t in frame_idxes],
-            "categories": {iid: self.instance_categories[iid] for iid in instance_ids_to_keep},
-            "segmentations": [
-                {
-                    iid: segmentations_t[iid]
-                    for iid in segmentations_t if iid in instance_ids_to_keep
-                }
-                for t, segmentations_t in enumerate(self.segmentations) if t in frame_idxes
-            ]
-        }
-
-        return self.__class__(subseq_dict, self.base_dir)
+        new_categories = {iid: self.instance_categories[iid] for iid in instance_ids_to_keep}
+        new_segmentations = [
+            {
+                iid: segmentations_t[iid]
+                for iid in segmentations_t if iid in instance_ids_to_keep
+            }
+            for t, segmentations_t in enumerate(self.segmentations) if t in frame_idxes
+        ]
+        return self.__class__(self.base_dir,
+                              id=new_id if new_id else self.id,
+                              height=self.image_dims[0],
+                              width=self.image_dims[1],
+                              image_paths=[self.image_paths[t] for t in frame_idxes],
+                              categories=new_categories,
+                              segmentations=new_segmentations)
 
     def dbg_load_image(self, frame_index)-> Image:
         """load image as PIL Image
