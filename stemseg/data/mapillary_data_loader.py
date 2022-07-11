@@ -1,8 +1,17 @@
+"""Load images and labels from the Mapillary Vistas Dataset
+
+Note:
+    resized images are expected. Check Readme for more information.
+
+Links: https://www.mapillary.com/dataset/vistas
+"""
 from functools import partial
+from typing import Tuple, List
+
 from torch.utils.data import Dataset
 
 from stemseg.config import cfg
-from stemseg.data.generic_image_dataset_parser import parse_generic_image_dataset
+from stemseg.data.generic_image_dataset_parser import parse_generic_image_dataset, GenericImageSample
 from stemseg.data.image_to_seq_augmenter import ImageToSeqAugmenter
 from stemseg.structures import BinaryMask, BinaryMaskSequenceList
 from stemseg.data.common import compute_resize_params, scale_and_normalize_images
@@ -18,11 +27,23 @@ import yaml
 
 class MapillaryDataLoader(Dataset):
     def __init__(self, base_dir, ids_json_file, min_instance_size=30, max_nbr_instances=30):
+        """
+
+        Args:
+            base_dir (Path): location of the images
+            ids_json_file: json file with datasetinformation and containing the labels
+            min_instance_size (int, optional): Minimal number of pixels for a mask.
+                                              All masks with a smaller area will be ignored.
+                                              Defaults to 30.
+            max_nbr_instances (int, optional): Defaults to 30.
+        """
         super().__init__()
 
         samples, meta_info = parse_generic_image_dataset(base_dir, ids_json_file)
 
         with open(os.path.join(RepoPaths.dataset_meta_info_dir(), 'mapillary.yaml'), 'r') as fh:
+            #TODO (Runinho): we do not check yaml version here
+            #                whereas we do in config.load_from_file
             category_details = yaml.load(fh, Loader=yaml.SafeLoader)
             category_details = {cat['id']: cat for cat in category_details}
 
@@ -36,7 +57,9 @@ class MapillaryDataLoader(Dataset):
             cat_id: category_details[cat_id]['label'] for cat_id in self.cat_ids_to_keep
         }
 
-        def filter_by_mask_area(sample):
+        # remove category labels that have less than ``min_instance_size`` pixels.
+        def filter_by_mask_area(sample: GenericImageSample) -> GenericImageSample:
+            """remove all masks that have less than ``min_instance_size`` pixels labeled"""
             mask_areas = sample.mask_areas()
             instance_idxes_to_keep = [
                 i for i in range(len(sample.segmentations)) if mask_areas[i] >= min_instance_size
@@ -49,6 +72,7 @@ class MapillaryDataLoader(Dataset):
 
         samples = map(filter_by_mask_area, samples)
 
+        # remove instances that do not contain relevant labels.
         self.samples = []
         for s in samples:
             if sum([1 for cat in s.categories if cat in self.cat_ids_to_keep]) == 0:
@@ -74,6 +98,23 @@ class MapillaryDataLoader(Dataset):
         self.np_to_tensor = transforms.BatchImageTransform(transforms.ToTorchTensor(format='CHW'))
 
     def filter_instance_masks(self, instance_masks, category_labels, instance_areas):
+        """separates ignore mask and masks we want to use
+
+        We limit the number of instances to ``self.max_nbr_instances`` and ignore
+        categories in ``self.cat_ids_to_ignore``.
+
+        Args:
+            instance_masks (List[np.ndarray]): list of label masks
+            category_labels (List[int]): list of category ids for ``instance_masks``.
+                Same length as `instance_masks`
+            instance_areas (List[int]): list of the area of ``instance_masks``
+
+        Returns:
+            Tuple[List[np.ndarray], List[int], np.ndarray]:
+                tuple containing the filtered ``instance_mask``, the category labels for the
+                returned instance masks and the ignore mask.
+
+        """
         # reorder instances in descending order of their mask areas
         reorder_idxes, instance_areas = zip(*sorted(
             [(i, area) for i, area in enumerate(instance_areas)], key=lambda x: x[1], reverse=True))
@@ -85,7 +126,13 @@ class MapillaryDataLoader(Dataset):
         filtered_category_labels = []
         ignore_instance_masks = []
 
+        # create ignore mask
+        # we igonre all masks with categories in self.cat_ids_to_ignore
+        # and all instances that are not in the set of the largest ``self.max_nbr_instances``
         for i, (mask, label) in enumerate(zip(instance_masks, category_labels)):
+            # TODO (Runinho): why do we use i to limit the number of instances and not
+            #  len(filtered_instance_mask)? We can also just break the loop if we detect we
+            #  reached self.max_nbr_instances.
             if i < self.max_nbr_instances:
                 if label in self.cat_ids_to_ignore:
                     ignore_instance_masks.append(mask)
@@ -96,6 +143,8 @@ class MapillaryDataLoader(Dataset):
                 ignore_instance_masks.append(mask)
 
         if ignore_instance_masks:
+            # TODO (Runinho): instead of stacking a list we could just do the or in the loop
+            #  starting with zeros.
             ignore_mask = np.any(np.stack(ignore_instance_masks), 0).astype(np.uint8)
         else:
             ignore_mask = np.zeros_like(instance_masks[0])
@@ -103,9 +152,19 @@ class MapillaryDataLoader(Dataset):
         return filtered_instance_masks, filtered_category_labels, ignore_mask
 
     def __len__(self):
+        """number of label/image paris in the dataset
+        """
         return len(self.samples)
 
     def __getitem__(self, index):
+        """loads image and label and create syntetic image sequence
+
+        Uses :class:`data.ImageToSeqAugmenter` to create the image sequence.
+
+        randomly flips the image.
+
+
+        """
         sample = self.samples[index]
 
         image = sample.load_image()
@@ -184,6 +243,18 @@ class MapillaryDataLoader(Dataset):
         return seq_images, targets, (image_width, image_height), {"category_labels": category_labels}
 
     def apply_random_flip(self, image, instance_masks, ignore_mask):
+        """with a chance of 50% flip the image
+
+        Args:
+            image (np.ndarray): image
+            instance_masks (List[np.ndarray]): masks
+            ignore_mask (np.ndarray):
+
+        Returns:
+            Tuple[np.ndarray, List[np.ndarray], np.ndarray]:
+                with a 50% chance atuple of the flipped inputs otherwise a tuple with
+                the unaltered inputs
+        """
         if random.random() < 0.5:
             image = np.flip(image, axis=1)
             instance_masks = [np.flip(instance_mask, axis=1) for instance_mask in instance_masks]
@@ -192,6 +263,19 @@ class MapillaryDataLoader(Dataset):
         return image, instance_masks, ignore_mask
 
     def apply_random_sequence_shuffle(self, images, instance_masks, ignore_masks, invalid_pts_masks):
+        """shuffle image and masks
+
+        Args:
+            images (List): list of images. Expect a length of ``self.num_frames``.
+            instance_masks (List): list of masks. Expect a length of ``self.num_frames``.
+            ignore_masks (List): list of ignore masks. Expect a length of ``self.num_frames``.
+            invalid_pts_masks (List): list of invalid points masks. Expect a length of ``self.num_frames``.
+
+        Returns:
+            Tuple[List, List, List, List]:
+                shuffled input lists.
+
+        """
         perm = list(range(self.num_frames))
         random.shuffle(perm)
         images = [images[i] for i in perm]
