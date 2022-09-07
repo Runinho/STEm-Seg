@@ -403,6 +403,6 @@ def visualize_generic_dataset(base_dir, dataset_json):
             color_key_printed = True
 
             cv2.imshow('Image', image_t)
-            # wait for key `113` which is a `q`
-            if cv2.waitKey(0) == 113:
+            # wait for q
+            if cv2.waitKey(0) == ord('q'):
                 exit(0)

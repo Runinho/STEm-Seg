@@ -99,7 +99,7 @@ class MOTSDataLoader(VideoDataset):
         instance_categories = sample.category_labels
 
         # separate the ignore masks
-        if 3 in instance_categories:
+        if self.IGNORE_MASK_CAT_ID in instance_categories:
             ignore_mask_idx = instance_categories.index(self.IGNORE_MASK_CAT_ID)
             instance_categories.remove(self.IGNORE_MASK_CAT_ID)
 
