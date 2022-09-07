@@ -1,4 +1,5 @@
 from stemseg.config import cfg
+from stemseg.data.generic_video_dataset_parser import GenericVideoSequence
 from stemseg.data.video_dataset import VideoDataset
 from stemseg.structures.mask import BinaryMask, BinaryMaskSequenceList
 
@@ -26,19 +27,25 @@ class MOTSDataLoader(VideoDataset):
             current_seq_frame_idxes = []
 
             for t in range(len(seq)):
+                # instance categories at the current time (t)
                 instance_cats_t = set([seq.instance_categories[iid] for iid in seq.segmentations[t].keys()])
 
                 if len(instance_cats_t - {self.IGNORE_MASK_CAT_ID}) == 0:  # no car or pedestrian instances
+                    # increase gap length
                     current_gap_len += 1
+                    # check if the current cap is 6 frames long
                     if current_gap_len == 6 and current_seq_frame_idxes:
+                        # create subsequence and reset current seq
                         split_sequences.append(seq.extract_subsequence(current_seq_frame_idxes,
                                                                        "{}_{}".format(seq.id, str(suffix))))
                         suffix += 1
                         current_seq_frame_idxes = []
                 else:
+                    # add current image to current sequence
                     current_gap_len = 0
                     current_seq_frame_idxes.append(t)
 
+            # check if we have to add the last sequence
             if current_seq_frame_idxes:
                 split_sequences.append(seq.extract_subsequence(current_seq_frame_idxes,
                                                                "{}_{}".format(seq.id, str(suffix))))
@@ -48,7 +55,21 @@ class MOTSDataLoader(VideoDataset):
         assert samples_to_create > 0, "Number of training samples is required for train mode"
         self.samples = self.create_training_subsequences(samples_to_create)
 
-    def create_training_subsequences(self, num_subsequences):
+    def create_training_subsequences(self, num_subsequences) -> List[GenericVideoSequence]:
+        """generate `num_subsequences` subsequences
+
+        Length of each subsequence is cfg.INPUT.NUM_FRAMES.
+        The sequence is sampled from cfg.DATA.KITTI_MOTS.FRAME_GAP_LOWER to cfg.DATA.KITTI_MOTS.FRAME_GAP_UPPER frames.
+        this allows "downsampling" if cfg.DATA.KITTI_MOTS.FRAME_GAP_UPPER > cfg.INPUT.NUM_FRAMES.
+        Each subsequence contains images from a random sequence starting at a random index.
+        (the random index is smaller as the length of the sequence minus the length of the subsequence)
+
+        Args:
+            num_subsequences(int): number of desired subsequences
+
+        Returns:
+            list containing subsequences. The length of the list is `num_sequences`
+        """
         frame_range = list(range(cfg.DATA.KITTI_MOTS.FRAME_GAP_LOWER, cfg.DATA.KITTI_MOTS.FRAME_GAP_UPPER + 1))
         subseq_length = self.clip_length
 
@@ -66,12 +87,17 @@ class MOTSDataLoader(VideoDataset):
 
         for sequence, num_samples in zip(sequences, samples_per_seq):
             for _ in range(num_samples):
+                # decide the length of the current subsequence
                 subseq_span = min(random.choice(subseq_span_range), len(sequence) - 1)
                 max_start_idx = len(sequence) - subseq_span - 1
                 assert max_start_idx >= 0
 
+                # decide statr of the current subsequence
                 start_idx = 0 if max_start_idx == 0 else random.randint(0, max_start_idx)
                 end_idx = start_idx + subseq_span
+                # get the indices (the following would allow to "downsample" longer sequenzes)
+                # The default configuration has subeq_length == (end_idx - start_idx) because
+                #      INPUT.NUM_FRAMES:8, FRAME_GAP_LOWER:8 and FRAME_GAP_UPPER: 8
                 sample_idxes = np.round(np.linspace(start_idx, end_idx, subseq_length)).astype(np.int32).tolist()
 
                 assert len(set(sample_idxes)) == len(sample_idxes)  # sanity check: ascertain no duplicate indices
@@ -85,6 +111,7 @@ class MOTSDataLoader(VideoDataset):
         subsequence_idxes = random.sample(subsequence_idxes, num_subsequences)
         random.shuffle(subsequence_idxes)
 
+        # extract subsequences
         sequences = {seq.id: seq for seq in sequences}
         subsequences = [sequences[video_id].extract_subsequence(frame_idxes) for video_id, frame_idxes in subsequence_idxes]
 

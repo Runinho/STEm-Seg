@@ -29,9 +29,9 @@ def allow_immutable(func):
     """
 
     def call(obj, *args, **kwargs):
-        obj.__immutable = False
+        obj.__setattr__("_" + obj.__class__.__name__ + "__immutable", False)
         ret = func(obj, *args, **kwargs)
-        obj.__immutable = True
+        obj.__setattr__("_" + obj.__class__.__name__ + "__immutable", True)
         return ret
 
     # copy docstring over for sphinx
@@ -296,7 +296,8 @@ class YamlConfig(dict):
         # check if we need to use yaml.FullLoader
         pyyaml_major_version = int(yaml.__version__.split('.')[0])
         pyyaml_minor_version = int(yaml.__version__.split('.')[1])
-        required_loader_arg = pyyaml_major_version >= 5 and pyyaml_minor_version >= 1
+        # greater or equal than version 5.1
+        required_loader_arg = (pyyaml_major_version == 5 and pyyaml_minor_version >= 1) or (pyyaml_major_version > 5)
 
         with open(config_file_path, 'r') as readfile:
             if required_loader_arg:

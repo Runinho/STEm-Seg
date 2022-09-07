@@ -1,6 +1,7 @@
 from argparse import ArgumentParser
 from datetime import timedelta
 from glob import glob
+from pathlib import Path
 
 from stemseg.data.common import tensor_struct_to, collate_fn
 from stemseg.config import cfg as global_cfg
@@ -185,8 +186,10 @@ class Trainer(object):
         sub_iter_idx = 0
 
         for image_seqs, targets, meta_info in data_loader:
+            img_seq = image_seqs.to(device=self.local_device)
+            targets = tensor_struct_to(targets, device=self.local_device)
             model_output = self.model(
-                image_seqs.to(device=self.local_device), tensor_struct_to(targets, device=self.local_device))
+                img_seq, targets)
 
             dist_utils.synchronize()
             if self.interrupt_detector.is_interrupted:
@@ -248,6 +251,9 @@ class Trainer(object):
                     self.backup_session()
 
                 dist_utils.synchronize()
+
+            # remove old data
+            del model_output
 
         self.console_logger.info(
             "Training complete\n"
@@ -367,6 +373,8 @@ def main(args):
         cfg_path = os.path.join(RepoPaths.configs_dir(), args.cfg)
 
     print("Restoring config from: {}".format(cfg_path))
+    # convert path to pathlib
+    cfg_path = Path(cfg_path)
     global_cfg.merge_from_file(cfg_path)
 
     num_gpus = torch.cuda.device_count()

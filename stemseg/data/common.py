@@ -2,6 +2,7 @@ from collections import defaultdict
 from stemseg.structures import ImageList
 from stemseg.utils.vis import overlay_mask_on_image, create_color_map
 from torch.nn import functional as F
+from typing import List
 
 import cv2
 import math
@@ -10,13 +11,16 @@ import torch
 
 
 def scale_and_normalize_images(images, means, scales, invert_channels, normalize_to_unit_scale):
-    """
-    Scales and normalizes images
-    :param images: tensor(T, C, H, W)
-    :param means: list(float)
-    :param scales: list(float)
-    :param invert_channels: bool
-    :return: tensor(T, C, H, W)
+    """ Scales and normalizes images
+
+    Args:
+        images (tensor(T, C, H, W)):
+        means (List[float]):
+        scales (List[float]):
+        invert_channels (bool):
+
+    Returns:
+        tensor(T, C, H, W):
     """
     means = torch.tensor(means, dtype=torch.float32)[None, :, None, None]  # [1, 3, 1, 1]
     scales = torch.tensor(scales, dtype=torch.float32)[None, :, None, None]  # [1. 3. 1. 1]
@@ -100,6 +104,7 @@ def tensor_struct_to(struct, *args, **kwargs):
         for elem in struct:
             if torch.is_tensor(elem) or hasattr(elem, "to"):
                 to_struct.append(elem.to(*args, **kwargs))
+                #print(f"list: to shape {elm.shape}")
             else:
                 to_struct.append(tensor_struct_to(elem, *args, **kwargs))
     elif isinstance(struct, dict):
@@ -107,6 +112,7 @@ def tensor_struct_to(struct, *args, **kwargs):
         for k, v in struct.items():
             if torch.is_tensor(v) or hasattr(v, "to"):
                 to_struct[k] = v.to(*args, **kwargs)
+                #print(f"struct: {k} to shape {v.shape}")
             else:
                 to_struct[k] = tensor_struct_to(v, *args, **kwargs)
     else:

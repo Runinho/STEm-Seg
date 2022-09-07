@@ -1,4 +1,5 @@
 import os
+from pathlib import Path
 
 
 def _get_env_var(varname):
@@ -82,11 +83,11 @@ class MapillaryPaths(object):
 
     @staticmethod
     def images_dir():
-        return _get_env_var('MAPILLARY_IMAGES_DIR')
+        return Path(_get_env_var('MAPILLARY_IMAGES_DIR'))
 
     @staticmethod
     def ids_file():
-        return os.path.join(_get_env_var('STEMSEG_JSON_ANNOTATIONS_DIR'), 'mapillary.json')
+        return Path(_get_env_var('STEMSEG_JSON_ANNOTATIONS_DIR')) / 'mapillary.json'
 
 
 class PascalVOCPaths(object):
