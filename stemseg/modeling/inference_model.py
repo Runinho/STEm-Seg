@@ -11,6 +11,7 @@ import cv2
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+from typing import List
 
 
 class InferenceModel(nn.Module):
@@ -64,8 +65,9 @@ class InferenceModel(nn.Module):
     def forward(self, image_paths, subseq_idxes):
         """
         Initialize a new sequence of images (arbitrary length)
-        :param image_paths: list of file paths to the images
-        :param subseq_idxes: list of tuples containing frame indices of the sub-sequences
+        Args:
+            image_paths (List): list of file paths to the images
+            subseq_idxes (List): list of tuples containing frame indices of the sub-sequences
         """
 
         # create an image loader
@@ -114,6 +116,7 @@ class InferenceModel(nn.Module):
                 for scale, feature_map in backbone_features[t].items():
                     stacked_features[scale].append(feature_map)
 
+            # Runinho: what is this scale??? Has this something to do with the time?? eg. previous time frames
             stacked_features = {
                 scale: torch.stack(stacked_features[scale], 2) for scale in stacked_features
             }  # dict(tensor(1, C, T, H, W))
