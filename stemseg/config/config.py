@@ -29,9 +29,9 @@ def allow_immutable(func):
     """
 
     def call(obj, *args, **kwargs):
-        obj.__immutable = False
+        obj.__setattr__("_" + obj.__class__.__name__ + "__immutable", False)
         ret = func(obj, *args, **kwargs)
-        obj.__immutable = True
+        obj.__setattr__("_" + obj.__class__.__name__ + "__immutable", True)
         return ret
 
     # copy docstring over for sphinx
