@@ -104,6 +104,7 @@ def tensor_struct_to(struct, *args, **kwargs):
         for elem in struct:
             if torch.is_tensor(elem) or hasattr(elem, "to"):
                 to_struct.append(elem.to(*args, **kwargs))
+                #print(f"list: to shape {elm.shape}")
             else:
                 to_struct.append(tensor_struct_to(elem, *args, **kwargs))
     elif isinstance(struct, dict):
@@ -111,6 +112,7 @@ def tensor_struct_to(struct, *args, **kwargs):
         for k, v in struct.items():
             if torch.is_tensor(v) or hasattr(v, "to"):
                 to_struct[k] = v.to(*args, **kwargs)
+                #print(f"struct: {k} to shape {v.shape}")
             else:
                 to_struct[k] = tensor_struct_to(v, *args, **kwargs)
     else:

@@ -100,12 +100,13 @@ class GenericImageSample(object):
             np.ndarray:
                 image with shape `height`, `width`
         """
-        im = cv2.imread(self.path, cv2.IMREAD_COLOR)
+        im = cv2.imread(str(self.path), cv2.IMREAD_COLOR)
         if im is None:
             raise ValueError("No image found at path: {}".format(self.path))
-        assert im.shape == (3, self.height, self.width), \
-            f"invalid image size loaded for {self.path}." \
-            f"expected image size {(3, self.height, self.width)} but got {im.shape}"
+
+        # assert im.shape == (3, self.height, self.width), \
+        #     f"invalid image size loaded for {self.path}." \
+        #     f"expected image size {(3, self.height, self.width)} but got {im.shape}"
         return im
 
     def load_ignore_mask(self) -> Optional[np.ndarray]:
