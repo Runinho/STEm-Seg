@@ -195,12 +195,12 @@ def create_concat_dataset_for_kitti_step(total_samples, print_fn=None):
     # Mapillary
     if ds_cfg.MAPILLARY_WEIGHT > 0.:
         datasets.append(MapillaryDataLoader(MapillaryPaths.images_dir(), MapillaryPaths.ids_file(),
-                                            metainfo_file="mapillary_step", new_id="id_kittistep"))
+                                            metainfo_file="mapillary_step.yaml", new_id="id_kittistep"))
         ds_weights.append(ds_cfg.MAPILLARY_WEIGHT)
         ds_names.append("Mapillary")
 
-    # KITTI-MOTS
-    if ds_cfg.KITTI_MOTS_WEIGHT > 0.:
+    # KITTI-STEP
+    if ds_cfg.KITTI_STEP_WEIGHT > 0.:
         num_subseqs = int(round(total_samples * ds_cfg.KITTI_MOTS_WEIGHT))
         datasets.append(MOTSDataLoader(
             KITTIMOTSPaths.train_images_dir(), KITTIMOTSPaths.train_vds_file(), num_subseqs,
