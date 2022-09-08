@@ -26,7 +26,8 @@ import yaml
 
 
 class MapillaryDataLoader(Dataset):
-    def __init__(self, base_dir, ids_json_file, min_instance_size=30, max_nbr_instances=30):
+    def __init__(self, base_dir, ids_json_file, min_instance_size=30, max_nbr_instances=30,
+                 metainfo_file="mapillary.yaml", new_id="id_kittimots"):
         """
 
         Args:
@@ -41,7 +42,7 @@ class MapillaryDataLoader(Dataset):
 
         samples, meta_info = parse_generic_image_dataset(base_dir, ids_json_file)
 
-        with open(os.path.join(RepoPaths.dataset_meta_info_dir(), 'mapillary.yaml'), 'r') as fh:
+        with open(os.path.join(RepoPaths.dataset_meta_info_dir(), metainfo_file), 'r') as fh:
             #TODO (Runinho): we do not check yaml version here
             #                whereas we do in config.load_from_file
             category_details = yaml.load(fh, Loader=yaml.SafeLoader)
@@ -51,7 +52,7 @@ class MapillaryDataLoader(Dataset):
         self.cat_ids_to_ignore = [cat_id for cat_id, attribs in category_details.items() if attribs['ignore_mask']]
 
         self.category_id_mapping = {
-            cat_id: category_details[cat_id]['id_kittimots'] for cat_id in self.cat_ids_to_keep
+            cat_id: category_details[cat_id][new_id] for cat_id in self.cat_ids_to_keep
         }
         self.category_labels = {
             cat_id: category_details[cat_id]['label'] for cat_id in self.cat_ids_to_keep
@@ -157,7 +158,7 @@ class MapillaryDataLoader(Dataset):
         return len(self.samples)
 
     def __getitem__(self, index):
-        """loads image and label and create syntetic image sequence
+        """loads image and label and create synthetic image sequence
 
         Uses :class:`data.ImageToSeqAugmenter` to create the image sequence.
 

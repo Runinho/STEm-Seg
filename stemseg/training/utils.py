@@ -179,12 +179,45 @@ def create_concat_dataset_for_kitti_mots(total_samples, print_fn=None):
 
     return CustomConcatDataset(datasets, total_samples, ds_weights)
 
+def create_concat_dataset_for_kitti_step(total_samples, print_fn=None):
+    if print_fn is None:
+        print_fn = print
+
+    print_fn("Creating training dataset for KITTI-STEP...")
+    assert cfg.INPUT.NUM_CLASSES == 19
+    # see: https://github.com/google-research/deeplab2/blob/main/g3doc/setup/kitti_step.md#label-map
+    datasets = []
+    ds_weights = []
+    ds_names = []
+
+    ds_cfg = cfg.DATA.KITTI_STEP
+
+    # Mapillary
+    if ds_cfg.MAPILLARY_WEIGHT > 0.:
+        datasets.append(MapillaryDataLoader(MapillaryPaths.images_dir(), MapillaryPaths.ids_file(),
+                                            metainfo_file="mapillary_step", new_id="id_kittistep"))
+        ds_weights.append(ds_cfg.MAPILLARY_WEIGHT)
+        ds_names.append("Mapillary")
+
+    # KITTI-MOTS
+    if ds_cfg.KITTI_MOTS_WEIGHT > 0.:
+        num_subseqs = int(round(total_samples * ds_cfg.KITTI_MOTS_WEIGHT))
+        datasets.append(MOTSDataLoader(
+            KITTIMOTSPaths.train_images_dir(), KITTIMOTSPaths.train_vds_file(), num_subseqs,
+            ignore_mask_cat_id=255))
+        ds_weights.append(ds_cfg.KITTI_MOTS_WEIGHT)
+        ds_names.append("KITTI-MOTS")
+
+    print_fn("Training datasets: {}".format(', '.join(ds_names)))
+
+    return CustomConcatDataset(datasets, total_samples, ds_weights)
 
 def create_training_dataset(total_samples, print_fn=None):
     dataset_creation_fns = {
         "davis": create_concat_dataset_for_davis,
         "youtube_vis": create_concat_dataset_for_youtube_vis,
         "kitti_mots": create_concat_dataset_for_kitti_mots,
+        "kitti_step": create_concat_dataset_for_kitti_step,
     }
 
     try:

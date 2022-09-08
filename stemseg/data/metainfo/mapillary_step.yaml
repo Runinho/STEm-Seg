@@ -11,8 +11,9 @@
   keep: false
   label: Curb
 - id: 4
+  id_kittistep: 4
   ignore_mask: false
-  keep: false
+  keep: true
   label: Fence
 - id: 5
   ignore_mask: false
@@ -23,8 +24,9 @@
   keep: false
   label: Barrier
 - id: 7
+  id_kittistep: 3
   ignore_mask: false
-  keep: false
+  keep: true
   label: Wall
 - id: 8
   ignore_mask: false
@@ -51,45 +53,51 @@
   keep: false
   label: Rail Track
 - id: 14
+  id_kittistep: 0
   ignore_mask: false
-  keep: false
+  keep: true
   label: Road
 - id: 15
   ignore_mask: false
   keep: false
   label: Service Lane
 - id: 16
+  id_kittistep: 1
   ignore_mask: false
-  keep: false
+  keep: true
   label: Sidewalk
 - id: 17
   ignore_mask: false
   keep: false
   label: Bridge
 - id: 18
+  id_kittistep: 2
   ignore_mask: false
-  keep: false
+  keep: true
   label: Building
 - id: 19
   ignore_mask: false
   keep: false
   label: Tunnel
 - id: 20
-  id_kittimots: 2
+  id_kittistep: 11
   ignore_mask: false
   keep: true
   label: Person
 - id: 21
-  ignore_mask: true
-  keep: false
+  id_kittistep: 12
+  ignore_mask: false
+  keep: true
   label: Bicyclist
 - id: 22
-  ignore_mask: true
-  keep: false
+  id_kittistep: 12
+  ignore_mask: false
+  keep: true
   label: Motorcyclist
 - id: 23
-  ignore_mask: true
-  keep: false
+  id_kittistep: 12
+  ignore_mask: false
+  keep: true
   label: Other Rider
 - id: 24
   ignore_mask: false
@@ -108,20 +116,23 @@
   keep: false
   label: Sand
 - id: 28
+  id_kittistep: 10
   ignore_mask: false
-  keep: false
+  keep: true
   label: Sky
 - id: 29
   ignore_mask: false
   keep: false
   label: Snow
 - id: 30
+  id_kittistep: 9
   ignore_mask: false
-  keep: false
+  keep: true
   label: Terrain
 - id: 31
+  id_kittistep: 8
   ignore_mask: false
-  keep: false
+  keep: true
   label: Vegetation
 - id: 32
   ignore_mask: false
@@ -180,8 +191,9 @@
   keep: false
   label: Street Light
 - id: 46
+  id_kittistep: 5
   ignore_mask: false
-  keep: false
+  keep: true
   label: Pole
 - id: 47
   ignore_mask: false
@@ -192,35 +204,40 @@
   keep: false
   label: Utility Pole
 - id: 49
+  id_kittistep: 6
   ignore_mask: false
-  keep: false
+  keep: true
   label: Traffic Light
 - id: 50
+  id_kittistep: 7
   ignore_mask: false
-  keep: false
+  keep: true
   label: Traffic Sign (Back)
 - id: 51
+  id_kittistep: 7
   ignore_mask: false
-  keep: false
+  keep: true
   label: Traffic Sign (Front)
 - id: 52
   ignore_mask: false
   keep: false
   label: Trash Can
 - id: 53
-  ignore_mask: true
-  keep: false
+  id_kittistep: 18
+  ignore_mask: false
+  keep: true
   label: Bicycle
 - id: 54
   ignore_mask: false
   keep: false
   label: Boat
 - id: 55
-  ignore_mask: true
-  keep: false
+  id_kittistep: 15
+  ignore_mask: false
+  keep: true
   label: Bus
 - id: 56
-  id_kittimots: 1
+  id_kittistep: 13
   ignore_mask: false
   keep: true
   label: Car
@@ -229,12 +246,14 @@
   keep: false
   label: Caravan
 - id: 58
-  ignore_mask: true
-  keep: false
+  id_kittistep: 17
+  ignore_mask: false
+  keep: true
   label: Motorcycle
 - id: 59
-  ignore_mask: true
-  keep: false
+  id_kittistep: 16
+  ignore_mask: false
+  keep: true
   label: On Rails
 - id: 60
   ignore_mask: true
@@ -245,8 +264,9 @@
   keep: false
   label: Trailer
 - id: 62
-  ignore_mask: true
-  keep: false
+  id_kittistep: 14
+  ignore_mask: false
+  keep: true
   label: Truck
 - id: 63
   ignore_mask: true

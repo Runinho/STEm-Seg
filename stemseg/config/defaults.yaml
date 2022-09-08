@@ -111,6 +111,15 @@ DATA:
     MAX_INFERENCE_TRACKS: 1000  # effectively unlimited
     MAPILLARY_WEIGHT: 0.0
     KITTI_MOTS_WEIGHT: 1.0
+  KITTI_STEP:
+    FRAME_GAP_LOWER: 8
+    FRAME_GAP_UPPER: 8
+    TRAIN_SEQS: ["0000", "0001", "0003", "0004", "0005", "0009", "0011", "0012", "0015", "0017", "0019", "0020", "0050"] # Sequence '0050' here is actually sequence '0002' from the MOTSChallenge dataset.
+    VAL_SEQS: ["0002", "0006", "0007", "0008", "0010", "0013", "0014", "0016", "0018"]
+    INFERENCE_FRAME_OVERLAP: 4
+    MAX_INFERENCE_TRACKS: 1000  # effectively unlimited
+    MAPILLARY_WEIGHT: 0.0
+    KITTI_MOTS_WEIGHT: 1.0
 CLUSTERING:
   MIN_SEEDINESS_PROB: 0.8
   PRIMARY_PROB_THRESHOLD: 0.5

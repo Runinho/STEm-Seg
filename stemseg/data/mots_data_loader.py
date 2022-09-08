@@ -3,6 +3,7 @@ from stemseg.data.generic_video_dataset_parser import GenericVideoSequence
 from stemseg.data.video_dataset import VideoDataset
 from stemseg.structures.mask import BinaryMask, BinaryMaskSequenceList
 
+from typing import List
 import math
 import numpy as np
 import random
@@ -10,11 +11,12 @@ import random
 
 class MOTSDataLoader(VideoDataset):
     #TODO(Runinho): refactor code to not use dict arguments
-    IGNORE_MASK_CAT_ID = 3
+    ignore_mask_cat_id = 3
 
     def __init__(self, base_dir, vds_json_file, samples_to_create,
-                 apply_augmentation=False):
+                 apply_augmentation=False, ignore_mask_cat_id=3):
         super(MOTSDataLoader, self).__init__(base_dir, vds_json_file, cfg.INPUT.NUM_FRAMES, apply_augmentation)
+        self.ignore_mask_cat_id = ignore_mask_cat_id
 
         # filtering zero instance frames introduces very long frame gaps for some videos. It is therefore better to
         # break up such cases into multiple sequences so that a single training sample does not contain large temporal
@@ -30,7 +32,7 @@ class MOTSDataLoader(VideoDataset):
                 # instance categories at the current time (t)
                 instance_cats_t = set([seq.instance_categories[iid] for iid in seq.segmentations[t].keys()])
 
-                if len(instance_cats_t - {self.IGNORE_MASK_CAT_ID}) == 0:  # no car or pedestrian instances
+                if len(instance_cats_t - {self.ignore_mask_cat_id}) == 0:  # no car or pedestrian instances
                     # increase gap length
                     current_gap_len += 1
                     # check if the current cap is 6 frames long
@@ -126,9 +128,9 @@ class MOTSDataLoader(VideoDataset):
         instance_categories = sample.category_labels
 
         # separate the ignore masks
-        if self.IGNORE_MASK_CAT_ID in instance_categories:
-            ignore_mask_idx = instance_categories.index(self.IGNORE_MASK_CAT_ID)
-            instance_categories.remove(self.IGNORE_MASK_CAT_ID)
+        if self.ignore_mask_cat_id in instance_categories:
+            ignore_mask_idx = instance_categories.index(self.ignore_mask_cat_id)
+            instance_categories.remove(self.ignore_mask_cat_id)
 
             ignore_masks = [BinaryMask(masks_t[ignore_mask_idx]) for masks_t in masks]
 
