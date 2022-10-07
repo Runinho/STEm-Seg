@@ -1,3 +1,4 @@
+from stemseg.data.paths import KITTISTEPPaths
 from stemseg.training.exponential_lr import ExponentialLR
 from stemseg.config import cfg
 from stemseg.data import CocoDataLoader, YoutubeVISDataLoader, DavisDataLoader, MapillaryDataLoader, MOTSDataLoader, \
@@ -201,11 +202,11 @@ def create_concat_dataset_for_kitti_step(total_samples, print_fn=None):
 
     # KITTI-STEP
     if ds_cfg.KITTI_STEP_WEIGHT > 0.:
-        num_subseqs = int(round(total_samples * ds_cfg.KITTI_MOTS_WEIGHT))
+        num_subseqs = int(round(total_samples * ds_cfg.KITTI_STEP_WEIGHT))
         datasets.append(MOTSDataLoader(
-            KITTIMOTSPaths.train_images_dir(), KITTIMOTSPaths.train_vds_file(), num_subseqs,
+            KITTISTEPPaths.train_images_dir(), KITTISTEPPaths.train_vds_file(), num_subseqs,
             ignore_mask_cat_id=255))
-        ds_weights.append(ds_cfg.KITTI_MOTS_WEIGHT)
+        ds_weights.append(ds_cfg.KITTI_STEP_WEIGHT)
         ds_names.append("KITTI-MOTS")
 
     print_fn("Training datasets: {}".format(', '.join(ds_names)))

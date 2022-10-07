@@ -76,6 +76,22 @@ class KITTIMOTSPaths(object):
     def val_vds_file():
         return os.path.join(_get_env_var('STEMSEG_JSON_ANNOTATIONS_DIR'), 'kittimots_val.json')
 
+class KITTISTEPPaths(object):
+    def __init__(self):
+        raise ValueError("Static class 'KITTISTEPPaths' should not be instantiated")
+
+    @staticmethod
+    def train_images_dir():
+        # same as kittimots
+        return _get_env_var('KITTIMOTS_BASE_DIR')
+
+    @staticmethod
+    def train_vds_file():
+        return os.path.join(_get_env_var('STEMSEG_JSON_ANNOTATIONS_DIR'), 'kittistep_train.json')
+
+    @staticmethod
+    def val_vds_file():
+        return os.path.join(_get_env_var('STEMSEG_JSON_ANNOTATIONS_DIR'), 'kittistep_val.json')
 
 class MapillaryPaths(object):
     def __init__(self):
