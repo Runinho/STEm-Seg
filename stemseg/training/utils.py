@@ -284,4 +284,5 @@ def create_training_data_loader(dataset, batch_size, shuffle, collate_fn=None, n
     return DataLoader(dataset,
                       collate_fn=collate_fn,
                       batch_sampler=batch_sampler,
-                      num_workers=num_workers)
+                      num_workers=num_workers,
+                      pin_memory=True)

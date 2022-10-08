@@ -189,7 +189,11 @@ class Trainer(object):
         time_last_iter = time.time()
 
         time_start_data_loading = time.time()
-        for image_seqs, targets, meta_info in data_loader:
+        for batch in data_loader:
+            image_seqs = batch.image_seqs
+            targets = batch.targets
+            meta_info = batch.meta_info
+
             time_end_data_loading = time.time()
             img_seq = image_seqs.to(device=self.local_device)
             targets = tensor_struct_to(targets, device=self.local_device)
@@ -422,5 +426,7 @@ if __name__ == '__main__':
     parser.add_argument('--subprocess_log_level', type=LogLevel, default=logging.WARN)
 
     args = parser.parse_args()
+
+    torch.backends.cudnn.benchmark = True
 
     main(args)

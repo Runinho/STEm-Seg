@@ -77,12 +77,22 @@ def pad_masks_to_image(image_seqs, targets):
 
     return targets
 
+class Batch:
+    def __init__(self, image_seqs, targets, meta_info):
+        self.image_seqs = image_seqs
+        self.targets = targets
+        self.meta_info = meta_info
+
+    def pin_memory(self):
+        self.image_seqs.pin_memory()
+        tensor_struct_pin_memory(self.targets)
+        return self
 
 def collate_fn(samples):
     image_seqs, targets, original_dims, meta_info = zip(*samples)
     image_seqs = ImageList.from_image_sequence_list(image_seqs, original_dims)
     targets = pad_masks_to_image(image_seqs, targets)
-    return image_seqs, targets, meta_info
+    return Batch(image_seqs, targets, meta_info)
 
 
 def targets_to(targets, *args, **kwargs):
@@ -98,28 +108,34 @@ def targets_to(targets, *args, **kwargs):
     return to_targets
 
 
-def tensor_struct_to(struct, *args, **kwargs):
-    if isinstance(struct, (list, tuple)):
+def apply_tensor_struct(struct, fname, *args, **kwargs):
+     if isinstance(struct, (list, tuple)):
         to_struct = []
         for elem in struct:
-            if torch.is_tensor(elem) or hasattr(elem, "to"):
-                to_struct.append(elem.to(*args, **kwargs))
+            if hasattr(elem, fname):
+                to_struct.append(getattr(elem, fname)(*args, **kwargs))
                 #print(f"list: to shape {elm.shape}")
             else:
-                to_struct.append(tensor_struct_to(elem, *args, **kwargs))
-    elif isinstance(struct, dict):
+                to_struct.append(apply_tensor_struct(elem, fname, *args, **kwargs))
+     elif isinstance(struct, dict):
         to_struct = {}
         for k, v in struct.items():
-            if torch.is_tensor(v) or hasattr(v, "to"):
-                to_struct[k] = v.to(*args, **kwargs)
+            if hasattr(v, fname):
+                to_struct[k] = getattr(v, fname)(*args, **kwargs)
                 #print(f"struct: {k} to shape {v.shape}")
             else:
-                to_struct[k] = tensor_struct_to(v, *args, **kwargs)
-    else:
+                to_struct[k] = apply_tensor_struct(v, fname, *args, **kwargs)
+     else:
         raise TypeError("Variable of unknown type {} found".format(type(struct)))
 
-    return to_struct
+     return to_struct
 
+
+def tensor_struct_to(struct, *args, **kwargs):
+    return apply_tensor_struct(struct, "to", *args, **kwargs)
+
+def tensor_struct_pin_memory(struct):
+    return apply_tensor_struct(struct, "pin_memory")
 
 def tensor_struct_to_cuda(struct):
     return tensor_struct_to(struct, device="cuda:0")
