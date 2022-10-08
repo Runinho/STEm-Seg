@@ -21,6 +21,10 @@ class ImageList(object):
         cast_tensors = self.tensors.to(*args, **kwargs)
         return self.__class__(cast_tensors, self.image_sizes, self.original_image_sizes)
 
+    def pin_memory(self):
+        pinned_tensors = self.tensors.pin_memory()
+        return self.__class__(pinned_tensors, self.image_sizes, self.original_image_sizes)
+
     def cuda(self):
         cuda_tensors = self.tensors.cuda()
         return self.__class__(cuda_tensors, self.image_sizes, self.original_image_sizes)
