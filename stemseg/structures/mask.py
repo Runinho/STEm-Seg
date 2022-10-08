@@ -34,9 +34,9 @@ class BinaryMask(object):
         assert not (size is None and scale_factor is None)
         assert not (size is not None and scale_factor is not None)
 
-        # resized_mask = F.interpolate(self._mask[None, None].float(), size, scale_factor, mode='nearest').byte()[0, 0]
-        resized_mask = F.interpolate(self._mask[None, None].float(), size, scale_factor, mode='bilinear', align_corners=False)
-        resized_mask = (resized_mask > 0.5).byte()[0, 0]
+        resized_mask = F.interpolate(self._mask[None, None].float(), size, scale_factor, mode='nearest').byte()[0, 0]
+        #resized_mask = F.interpolate(self._mask[None, None].float(), size, scale_factor, mode='bilinear', align_corners=False)
+        #resized_mask = (resized_mask > 0.5).byte()[0, 0]
         return self.__class__(resized_mask)
 
     def pad(self, new_width, new_height):

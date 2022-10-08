@@ -1,3 +1,4 @@
+import time
 from argparse import ArgumentParser
 from datetime import timedelta
 from glob import glob
@@ -185,7 +186,11 @@ class Trainer(object):
 
         sub_iter_idx = 0
 
+        time_last_iter = time.time()
+
+        time_start_data_loading = time.time()
         for image_seqs, targets, meta_info in data_loader:
+            time_end_data_loading = time.time()
             img_seq = image_seqs.to(device=self.local_device)
             targets = tensor_struct_to(targets, device=self.local_device)
             model_output = self.model(
@@ -220,6 +225,11 @@ class Trainer(object):
 
             if self.is_main_process:
                 add_to_summary = self.elapsed_iterations % opts.summary_interval == 0
+                # add time of the iter to tensorboard
+                current_time = time.time()
+                logging_vars["iter_time"] = current_time - time_last_iter
+                time_last_iter = current_time
+                logging_vars["data_loading_time"] = time_end_data_loading - time_start_data_loading
                 self.logger.add_training_point(self.elapsed_iterations, add_to_summary, **logging_vars)
 
                 if hasattr(self.lr_scheduler, "get_last_lr"):  # PyTorch versions > 1.5
@@ -254,6 +264,7 @@ class Trainer(object):
 
             # remove old data
             del model_output
+            time_start_data_loading = time.time()
 
         self.console_logger.info(
             "Training complete\n"

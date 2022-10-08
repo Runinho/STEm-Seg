@@ -34,7 +34,7 @@ _VAR_KEY_TO_DISP_STR = {
 def var_keys_to_str(losses):
     s = ''
     for k, v in losses.items():
-        if k == "lr":
+        if k not in _VAR_KEY_TO_DISP_STR:
             s += "LR: {:.2E} - ".format(v)
         else:
             s += "{:s}: {:.3f} - ".format(_VAR_KEY_TO_DISP_STR[k], v)
