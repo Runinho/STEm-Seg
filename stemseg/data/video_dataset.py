@@ -96,10 +96,9 @@ class VideoDataset(Dataset):
                                             cfg.INPUT.NORMALIZE_TO_UNIT_SCALE)
 
         # resize masks
-        masks = masks.resize((new_width, new_height), None)
         ignore_masks = [mask.resize((new_height, new_width)) for mask in ignore_masks]
 
-        masks = masks.tensor().permute(1, 0, 2, 3)                            # [N, T, H, W]
+        masks = masks.resize_as_tensor((new_width, new_height)).permute(1, 0, 2, 3)                            # [N, T, H, W]
         ignore_masks = torch.stack([mask.tensor() for mask in ignore_masks], 0)  # [T, H, W]
 
         targets = {

@@ -225,11 +225,10 @@ class MapillaryDataLoader(Dataset):
 
         # resize masks to the required input size
         seq_instance_masks = BinaryMaskSequenceList(seq_instance_masks)
-        seq_instance_masks = seq_instance_masks.resize((new_width, new_height))
         seq_ignore_masks = [mask.resize((new_height, new_width)) for mask in seq_ignore_masks]
 
         # convert masks to torch tensors
-        seq_instance_masks = seq_instance_masks.tensor().permute(1, 0, 2, 3)  # [N, T, H, W]
+        seq_instance_masks = seq_instance_masks.resize_as_tensor((new_width, new_height)).permute(1, 0, 2, 3)  # [N, T, H, W]
         seq_ignore_masks = torch.stack([mask.tensor() for mask in seq_ignore_masks], 0)  # [T, H, W]
 
         category_labels = [self.category_labels[label] for label in category_ids]

@@ -143,6 +143,31 @@ class BinaryMaskSequenceList(object):
 
         return self.__class__(mask_sequence_list)
 
+    def resize_as_tensor(self, size=None, scale_factor=None):
+        """
+        Resizes all masks in the sequence list
+        same as .resize().tensor() but twice as fast
+
+        Args:
+            size:  New dimension in (W, H) format
+            scale_factor: Alternatively, a scale factor for resizing
+
+        Returns:
+            tensor with masks
+        """
+        if size is not None:
+            size = size[::-1]
+
+        t = self.tensor()
+        # add channel dimension
+        t_reshaped = t[:,:,None,:,:]
+        # combine time and instance dimension into one mini-batch dimension
+        t_reshaped = t_reshaped.flatten(end_dim=1)
+        resized = F.interpolate(t_reshaped, size, scale_factor, mode='nearest').byte()[:,0,:,:]
+        # remove channel dimension and  separate time and instance dimension
+        resized = resized.reshape((*t.shape[:-2], *resized.shape[-2:]))
+        return resized
+
     def pad(self, new_width, new_height):
         mask_sequence_list = []
         for instance_list in self._mask_sequence_list:
