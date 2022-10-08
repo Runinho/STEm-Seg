@@ -84,8 +84,8 @@ class Batch:
         self.meta_info = meta_info
 
     def pin_memory(self):
-        self.image_seqs.pin_memory()
-        tensor_struct_pin_memory(self.targets)
+        self.image_seqs = self.image_seqs.pin_memory()
+        self.targets = tensor_struct_pin_memory(self.targets)
         return self
 
 def collate_fn(samples):
