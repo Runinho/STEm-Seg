@@ -225,6 +225,7 @@ def instance_masks_to_semseg_mask(instance_masks, category_labels):
         "Number of instances do not match: {}, {}".format(len(category_labels), len(instance_masks))
     semseg_masks = instance_masks.long()
 
+    #TODO (RUNINHO): one could fuse the max into this for loop
     for i, label in enumerate(category_labels):
         semseg_masks[i] = torch.where(instance_masks[i], label, semseg_masks[i])
 

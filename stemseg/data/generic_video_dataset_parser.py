@@ -2,15 +2,29 @@
 
 import json
 import os
+import sys
+from pathlib import Path
 from typing import List, Tuple, Dict, Iterable
 
 import cv2
+import h5py
 import numpy as np
 import numpy.typing as npt
 from PIL import Image
 from pycocotools import mask as masktools
 
-
+dataset = {}
+def get_hdtf(base_dir, name):
+    hdf5_file = Path(base_dir) / (name + ".h5")
+    if hdf5_file in dataset:
+        return dataset[hdf5_file]
+    else:
+        if not hdf5_file.is_file():
+            print(f"couldn't load hdtf5 file for {hdf5_file}. please run `python -m scripts.create_hdtf5`")
+            sys.exit()
+        d = h5py.File(hdf5_file)
+        dataset[hdf5_file] = d
+        return d
 def parse_generic_video_dataset(base_dir, dataset_json) -> Tuple[
     List['GenericVideoSequence'], Dict]:
     """create dataset from dataset json
@@ -172,7 +186,7 @@ class GenericVideoSequence:
             https://cocodataset.org/
         """
         self.base_dir = base_dir
-        self.image_paths = image_paths
+        self.image_paths = list([Path(f) for f in image_paths])
         self.image_dims = (height, width)
         self.id = id
 
@@ -195,7 +209,7 @@ class GenericVideoSequence:
     def __repr__(self):
         return f'GenericVideoSequence(id:{self.id}, len:{len(self)})'
 
-    def load_images(self, frame_idxes=None) -> List[np.ndarray]:
+    def load_images(self, frame_idxes=None) -> np.ndarray:
         """load images for a list of frames
 
         Args:
@@ -208,14 +222,15 @@ class GenericVideoSequence:
         if frame_idxes is None:
             frame_idxes = list(range(len(self.image_paths)))
 
-        images = []
-        for t in frame_idxes:
-            # TODO: why do we use cv2 to read images?
-            im = cv2.imread(os.path.join(self.base_dir, self.image_paths[t]), cv2.IMREAD_COLOR)
-            if im is None:
-                raise ValueError(
-                    f"No image found at path: {os.path.join(self.base_dir, self.image_paths[t])}")
-            images.append(im)
+
+        f = get_hdtf(self.base_dir, "images")
+        dataset = f[self.image_paths[0].parts[0]]
+        indices = list([int(f.stem) for f in self.image_paths])
+        # if the indices are consequtive we acess them as such (faster)
+        if indices == list(range(indices[0], indices[-1] + 1)):
+            images = dataset[indices[0]:indices[-1] + 1]
+        else:
+            images = dataset[indices]
 
         return images
 
@@ -239,6 +254,8 @@ class GenericVideoSequence:
         if frame_idxes is None:
             frame_idxes = list(range(len(self.image_paths)))
 
+        f = get_hdtf(self.base_dir, "masks")
+        dataset = f[self.image_paths[0].parts[0]]
         masks = []
         # iterate over the time
         for t in frame_idxes:
@@ -246,17 +263,11 @@ class GenericVideoSequence:
 
             for instance_id in self.instance_ids:
                 if instance_id in self.segmentations[t]:
-                    rle_mask = {
-                        "counts": self.segmentations[t][instance_id].encode('utf-8'),
-                        "size": self.image_dims
-                    }
-                    masks_t.append(
-                        np.ascontiguousarray(masktools.decode(rle_mask).astype(np.uint8)))
+                    masks_t.append(np.ascontiguousarray(dataset[self.segmentations[t][instance_id]]))
                 else:
                     masks_t.append(np.zeros(self.image_dims, np.uint8))
 
             masks.append(masks_t)
-
         return masks
 
     def filter_categories(self, cat_ids_to_keep: Iterable):

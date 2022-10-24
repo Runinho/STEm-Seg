@@ -96,7 +96,8 @@ class MOTSDataLoader(VideoDataset):
 
                 # decide statr of the current subsequence
                 start_idx = 0 if max_start_idx == 0 else random.randint(0, max_start_idx)
-                end_idx = start_idx + subseq_span
+                # TODO(Runinho): check if this fix (subtract 1) is also applicable to other ranges
+                end_idx = start_idx + subseq_span - 1
                 # get the indices (the following would allow to "downsample" longer sequenzes)
                 # The default configuration has subeq_length == (end_idx - start_idx) because
                 #      INPUT.NUM_FRAMES:8, FRAME_GAP_LOWER:8 and FRAME_GAP_UPPER: 8
@@ -146,7 +147,7 @@ class MOTSDataLoader(VideoDataset):
 
         else:
             height, width = images[0].shape[:2]
-            ignore_masks = [BinaryMask(np.zeros((height, width), np.uint8)) for _ in range(len(images))]
+            ignore_masks = [BinaryMask(np.zeros((height, width), np.uint8)) for _ in range(images.shape[0])]
 
             masks = [
                 [

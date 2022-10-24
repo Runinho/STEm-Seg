@@ -87,11 +87,11 @@ class KITTISTEPPaths(object):
 
     @staticmethod
     def train_vds_file():
-        return os.path.join(_get_env_var('STEMSEG_JSON_ANNOTATIONS_DIR'), 'kittistep_train.json')
+        return os.path.join(_get_env_var('STEMSEG_JSON_ANNOTATIONS_DIR'), 'kittistep_train_without_mask.json')
 
     @staticmethod
     def val_vds_file():
-        return os.path.join(_get_env_var('STEMSEG_JSON_ANNOTATIONS_DIR'), 'kittistep_val.json')
+        return os.path.join(_get_env_var('STEMSEG_JSON_ANNOTATIONS_DIR'), 'kittistep_val_without_mask.json')
 
 class MapillaryPaths(object):
     def __init__(self):
