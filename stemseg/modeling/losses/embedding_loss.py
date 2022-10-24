@@ -102,6 +102,7 @@ class EmbeddingLoss(nn.Module):
             total_instances += len(nonzero_mask_pts)
 
             # regress seediness values for background to 0
+            # TODO (Runinho): we might want to restrict the seediness to the foreground classes.
             bg_mask_pts = (masks == 0).all(0).nonzero(as_tuple=False).unbind(1)
             bg_seediness_pts = seediness_per_seq[bg_mask_pts]
             bg_seediness_loss = F.mse_loss(bg_seediness_pts, torch.zeros_like(bg_seediness_pts), reduction='none')

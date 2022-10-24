@@ -218,7 +218,7 @@ class TrainingModel(nn.Module):
         loss = 0.
 
         for pred_fg_logits_per_seq, targets_per_seq in zip(fg_logits, targets):
-            gt_semseg_masks_per_seq = targets_per_seq['semseg_masks']
+            gt_semseg_masks_per_seq = targets_per_seq[ModelOutput.SEMSEG_MASKS]
             ignore_masks_per_seq = targets_per_seq['ignore_masks']
 
             assert gt_semseg_masks_per_seq.shape[-2:] == pred_fg_logits_per_seq.shape[-2:], \
@@ -230,6 +230,7 @@ class TrainingModel(nn.Module):
                     gt_semseg_masks_per_seq.shape, ignore_masks_per_seq.shape
                 )
 
+            # foreground is where the class is not 0
             fg_masks_per_seq = (gt_semseg_masks_per_seq > 0).float()
             seq_loss = F.binary_cross_entropy_with_logits(pred_fg_logits_per_seq, fg_masks_per_seq, reduction="none")
 
