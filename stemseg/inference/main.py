@@ -5,6 +5,7 @@ from pathlib import Path
 from tqdm import tqdm
 
 from stemseg.config import cfg
+from stemseg.data.paths import KITTISTEPPaths
 
 from stemseg.inference.output_utils import YoutubeVISOutputGenerator, DavisOutputGenerator, KittiMOTSOutputGenerator
 from stemseg.inference.online_chainer import OnlineChainer
@@ -29,7 +30,7 @@ def get_subsequence_frames(seq_len, subseq_len, dataset_name, frame_overlap=-1):
         frame_overlap = cfg.DATA.DAVIS.INFERENCE_FRAME_OVERLAP if frame_overlap <= 0 else frame_overlap
     elif dataset_name == "ytvis":
         frame_overlap = cfg.DATA.YOUTUBE_VIS.INFERENCE_FRAME_OVERLAP if frame_overlap <= 0 else frame_overlap
-    elif dataset_name == "kittimots":
+    elif dataset_name in ["kittimots", "kittistep"]:
         frame_overlap = cfg.DATA.KITTI_MOTS.INFERENCE_FRAME_OVERLAP if frame_overlap <= 0 else frame_overlap
     else:
         raise NotImplementedError()
@@ -58,7 +59,7 @@ class TrackGenerator(object):
         self.dataset_name = dataset_name
 
         self.output_generator = output_generator
-        if self.dataset_name == "kittimots":
+        if self.dataset_name in ["kittimots", "kittistep"]:
             semseg_output_type = "argmax"
         elif self.dataset_name == "ytvis":
             semseg_output_type = "logits"
@@ -197,10 +198,11 @@ def load_cfg(args):
         dataset_cfgs = {
             "davis": "davis_2.yaml",
             "ytvis": "youtube_vis.yaml",
-            "kittimots": "kitti_mots_2.yaml"
+            "kittimots": "kitti_mots_2.yaml",
+            "kittistep": "kitti_step_2.yaml",
         }
         assert args.dataset in dataset_cfgs, \
-            "Invalid '--dataset' argument. Should be either 'davis', 'ytvis' or 'kittimots'"
+            "Invalid '--dataset' argument. Should be either 'davis', 'ytvis', 'kittimots' or 'kittistep'"
         cfg_file = RepoPaths.configs_dir() / dataset_cfgs[args.dataset]
 
     print("Loading config from {}".format(cfg_file))
@@ -252,6 +254,7 @@ def main(args):
 
     cluster_full_scale = cfg.TRAINING.LOSS_AT_FULL_RES or args.resize_embeddings
     output_resize_scale = 4.0 if cluster_full_scale else 1.0
+    # TODO (Runinho): do we need to change this vor kittistep
     semseg_averaging_on_gpu = not ((args.dataset == "ytvis" or args.dataset == "kittimots") and cluster_full_scale)
 
     if args.dataset == "davis":
@@ -272,6 +275,37 @@ def main(args):
         sequences, _ = parse_generic_video_dataset(KITTIMOTSPaths.train_images_dir(), KITTIMOTSPaths.val_vds_file())
         output_generator = KittiMOTSOutputGenerator(output_dir, OnlineChainer.OUTLIER_LABEL, args.save_vis,
                                                     upscaled_inputs=cluster_full_scale)
+        max_tracks = cfg.DATA.KITTI_MOTS.MAX_INFERENCE_TRACKS
+        preload_images = False
+    elif args.dataset == "kittistep":
+        sequences, meta_info = parse_generic_video_dataset(KITTISTEPPaths.train_images_dir(), KITTISTEPPaths.val_vds_file())
+
+        # TODO: load categories from label json
+        categories = {0: 'road',
+                      1: 'sidewalk',
+                      2: 'building',
+                      3: 'wall',
+                      4: 'fence',
+                      5: 'pole',
+                      6: 'trafficlight',
+                      7: 'trafficsign',
+                      8: 'vegetation',
+                      9: 'terrain',
+                      10: 'sky',
+                      11: 'person',
+                      12: 'rider',
+                      13: 'car',
+                      14: 'truck',
+                      15: 'bus',
+                      16: 'train',
+                      17: 'motorcycle',
+                      18: 'bicycle',
+                      255: 'void'}
+        categories = {k + 1: v for k, v in categories.items()}
+
+        output_generator = KittiMOTSOutputGenerator(output_dir, OnlineChainer.OUTLIER_LABEL, args.save_vis,
+                                                    upscaled_inputs=cluster_full_scale,
+                                                    category_label=categories)
         max_tracks = cfg.DATA.KITTI_MOTS.MAX_INFERENCE_TRACKS
         preload_images = False
 

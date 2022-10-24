@@ -16,15 +16,15 @@ import torch.nn.functional as F
 
 
 class KittiMOTSOutputGenerator(object):
-    def __init__(self, output_dir, outlier_label, save_visualization, *args, **kwargs):
+    def __init__(self, output_dir, outlier_label, save_visualization, category_label={1: "c", 2: "p"}, *args, **kwargs):
         self.results_output_dir = os.path.join(output_dir, "results")
         self.vis_output_dir = os.path.join(output_dir, "vis")
 
         self.outlier_label = outlier_label
         self.save_visualization = save_visualization
 
-        self.categories = (1, 2)
-        self.category_label = {1: "c", 2: "p"}  # car, pedestrian
+        self.categories = tuple(category_label.keys())
+        self.category_label = category_label# car, pedestrian
         self.upscaled_inputs = kwargs.get("upscaled_inputs")
 
     @Timer.exclude_duration("postprocessing")
