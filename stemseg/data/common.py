@@ -122,7 +122,7 @@ class MaskTarget:
         return self.semseg_mask
 
     def foreground_masks(self):
-        is_foreground = list([True in self.foreground_categories for  c in self.category_ids])
+        is_foreground = list([c in self.foreground_categories for c in self.category_ids])
         return self.masks[is_foreground]
     @torch.no_grad()
     def get_foreground_mask(self):
