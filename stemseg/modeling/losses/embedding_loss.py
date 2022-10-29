@@ -1,3 +1,6 @@
+from typing import List
+
+from stemseg.data.common import MaskTarget
 from stemseg.utils import ModelOutputConsts, LossConsts
 from stemseg.utils import distributed as dist_utils
 from stemseg.modeling.losses._lovasz import LovaszHingeLoss
@@ -35,11 +38,13 @@ class EmbeddingLoss(nn.Module):
     def forward(self, embedding_map, targets, output_dict, *args, **kwargs):
         """
         Computes the embedding loss.
-        :param embedding_map: Tensor of shape [N, C, T, H, W] (C = embedding dims + variance dims + seediness dims)
-        :param targets: List (length N) of dicts, each containing a 'masks' field containing a tensor of
-        shape (I (instances), T, H, W)
-        :param output_dict: dict to populate with loss values.
-        :return: Scalar loss
+        Args:
+            embedding_map: Tensor of shape [N, C, T, H, W] (C = embedding dims + variance dims + seediness dims)
+            targets (List[MaskTarget]):
+            output_dict (dict): dict to populate with loss values.
+
+        Returns:
+            Scalar loss
         """
         assert embedding_map.shape[1] == self.num_input_channels, "Expected {} channels in input tensor, got {}".format(
             self.num_input_channels, embedding_map.shape[1])
@@ -61,11 +66,11 @@ class EmbeddingLoss(nn.Module):
         for idx, (embeddings_per_seq, bandwidth_per_seq, seediness_per_seq, targets_per_seq) in \
                 enumerate(zip(embedding_map, bandwidth_map, seediness_map, targets)):
 
-            masks = targets_per_seq['masks']
+            masks = targets_per_seq.foreground_masks()
             if masks.numel() == 0:
                 continue
 
-            ignore_masks = targets_per_seq['ignore_masks']
+            ignore_masks = targets_per_seq.ignore_masks
 
             assert masks.shape[-2:] == ignore_masks.shape[-2:], \
                 "Masks tensor has shape {} while ignore mask has shape {}".format(masks.shape, ignore_masks.shape)
@@ -102,7 +107,6 @@ class EmbeddingLoss(nn.Module):
             total_instances += len(nonzero_mask_pts)
 
             # regress seediness values for background to 0
-            # TODO (Runinho): we might want to restrict the seediness to the foreground classes.
             bg_mask_pts = (masks == 0).all(0).nonzero(as_tuple=False).unbind(1)
             bg_seediness_pts = seediness_per_seq[bg_mask_pts]
             bg_seediness_loss = F.mse_loss(bg_seediness_pts, torch.zeros_like(bg_seediness_pts), reduction='none')

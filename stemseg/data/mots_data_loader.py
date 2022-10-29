@@ -14,9 +14,10 @@ class MOTSDataLoader(VideoDataset):
     ignore_mask_cat_id = 3
 
     def __init__(self, base_dir, vds_json_file, samples_to_create,
-                 apply_augmentation=False, ignore_mask_cat_id=3):
+                 apply_augmentation=False, ignore_mask_cat_id=3, foreground_categories=[1,2]):
         super(MOTSDataLoader, self).__init__(base_dir, vds_json_file, cfg.INPUT.NUM_FRAMES, apply_augmentation)
         self.ignore_mask_cat_id = ignore_mask_cat_id
+        self.foreground_categories = foreground_categories
 
         # filtering zero instance frames introduces very long frame gaps for some videos. It is therefore better to
         # break up such cases into multiple sequences so that a single training sample does not contain large temporal
@@ -161,7 +162,8 @@ class MOTSDataLoader(VideoDataset):
         if masks.num_instances == 0:
             raise ValueError("No instances exist in the masks (seq: {})".format(sample.id))
 
-        return images, masks, instance_categories, {'seq_name': sample.id, 'ignore_masks': ignore_masks}
+        return images, masks, instance_categories, {'seq_name': sample.id, 'ignore_masks': ignore_masks,
+                                                    'foreground_categories': self.foreground_categories}
 
     def __len__(self):
         return len(self.samples)

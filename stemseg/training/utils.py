@@ -195,6 +195,7 @@ def create_concat_dataset_for_kitti_step(total_samples, print_fn=None):
 
     # Mapillary
     if ds_cfg.MAPILLARY_WEIGHT > 0.:
+        # TODO: modify mapilary dataset to support foreground categories.
         datasets.append(MapillaryDataLoader(MapillaryPaths.images_dir(), MapillaryPaths.ids_file(),
                                             metainfo_file="mapillary_step.yaml", new_id="id_kittistep"))
         ds_weights.append(ds_cfg.MAPILLARY_WEIGHT)
@@ -205,7 +206,7 @@ def create_concat_dataset_for_kitti_step(total_samples, print_fn=None):
         num_subseqs = int(round(total_samples * ds_cfg.KITTI_STEP_WEIGHT))
         datasets.append(MOTSDataLoader(
             KITTISTEPPaths.train_images_dir(), KITTISTEPPaths.train_vds_file(), num_subseqs,
-            ignore_mask_cat_id=255))
+            ignore_mask_cat_id=255, foreground_categories=[11, 13])) # TODO: check foreground categories.
         ds_weights.append(ds_cfg.KITTI_STEP_WEIGHT)
         ds_names.append("KITTI-MOTS")
 
@@ -267,7 +268,7 @@ def create_lr_scheduler(optimizer, cfg, print_fn=None):
     return lr_scheduler
 
 
-def create_training_data_loader(dataset, batch_size, shuffle, collate_fn=None, num_workers=0, elapsed_iters=0):
+def create_training_data_loader(dataset, batch_size, shuffle, collate_fn=None, num_workers=0, elapsed_iters=0) -> DataLoader:
     is_distributed = dist_utils.is_distributed()
     if is_distributed:
         sampler = CustomDistributedSampler(dataset, dist_utils.get_world_size(), dist_utils.get_rank(), shuffle)

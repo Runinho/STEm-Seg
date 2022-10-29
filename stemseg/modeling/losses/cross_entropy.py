@@ -13,15 +13,19 @@ class CrossEntropyLoss(nn.Module):
     def forward(self, semseg_logits, targets, output_dict):
         """
         Computes the semantic segmentation loss
-        :param semseg_logits: tensor of shape [N, T, cls, H, W]
-        :param targets: list(dict(tensors))
-        :return: scalar loss for semantic segmentation
+
+        sets ModelOutputConsts.OTHERS and ModelOutputConsts.OPTIMIZATION_LOSSES in output_dict
+
+        Args:
+            semseg_logits (torch.Tensor): tensor of shape [N, T, cls, H, W]
+            targets (List[MaskTarget])
+
         """
         loss = 0.
 
         for pred_semseg_logits_per_seq, targets_per_seq in zip(semseg_logits, targets):
-            gt_semseg_masks_per_seq = targets_per_seq['semseg_masks']
-            ignore_masks_per_seq = targets_per_seq['ignore_masks']
+            gt_semseg_masks_per_seq = targets_per_seq.get_semseg_masks()
+            ignore_masks_per_seq = targets_per_seq.ignore_masks
 
             assert gt_semseg_masks_per_seq.shape[-2:] == pred_semseg_logits_per_seq.shape[-2:], \
                 "Shape mismatch between ground truth semseg masks {} and predicted semseg masks {}".format(

@@ -3,9 +3,10 @@ from argparse import ArgumentParser
 from datetime import timedelta
 from glob import glob
 from pathlib import Path
+from typing import List
 
-from stemseg.data.common import tensor_struct_to, collate_fn
 from stemseg.config import cfg as global_cfg
+from stemseg.data.common import collate_fn, MaskTarget
 from stemseg.modeling.model_builder import build_model
 from stemseg.utils import ModelPaths, RepoPaths
 from stemseg.utils import distributed as dist_utils
@@ -191,12 +192,12 @@ class Trainer(object):
         time_start_data_loading = time.time()
         for batch in data_loader:
             image_seqs = batch.image_seqs
-            targets = batch.targets
+            targets: List[MaskTarget] = batch.targets
             meta_info = batch.meta_info
 
             time_end_data_loading = time.time()
             img_seq = image_seqs.to(device=self.local_device)
-            targets = tensor_struct_to(targets, device=self.local_device)
+            targets = list([target.to(device=self.local_device) for target in targets])
             model_output = self.model(
                 img_seq, targets)
 

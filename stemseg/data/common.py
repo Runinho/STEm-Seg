@@ -59,12 +59,12 @@ def resize_and_pad_images(images, min_dim, max_dim):
     return F.pad(images, (0, pad_right, 0, pad_bottom))
 
 
-def pad_masks_to_image(image_seqs, targets):
+def pad_masks_to_image(image_seqs, targets: List['MaskTarget']):
     padded_h, padded_w = image_seqs.max_size
 
     for targets_per_seq in targets:
-        instance_masks = targets_per_seq['masks']  # [N, T, H, W]
-        ignore_masks = targets_per_seq['ignore_masks']  # [T, H, W]
+        instance_masks = targets_per_seq.masks  # [N, T, H, W]
+        ignore_masks = targets_per_seq.ignore_masks  # [T, H, W]
 
         mask_h, mask_w = instance_masks.shape[-2:]
         pad_bottom, pad_right = padded_h - mask_h, padded_w - mask_w
@@ -72,20 +72,71 @@ def pad_masks_to_image(image_seqs, targets):
         instance_masks = F.pad(instance_masks, (0, pad_right, 0, pad_bottom))
         ignore_masks = F.pad(ignore_masks.unsqueeze(0), (0, pad_right, 0, pad_bottom)).squeeze(0)
 
-        targets_per_seq['masks'] = instance_masks
-        targets_per_seq['ignore_masks'] = ignore_masks
+        targets_per_seq.masks = instance_masks
+        targets_per_seq.ignore_masks = ignore_masks
 
     return targets
 
+# contains all the information to calculate the loss
+class MaskTarget:
+    def __init__(self, masks, category_ids, ignore_masks, foreground_categories):
+        """Contains the label information for one sequence and is used to calcualte the losses.
+
+        Args:
+            masks (Torch.Tensor): masks for each id and timestep. [N, T, H, W]
+            category_ids (Torch.Tensor): category_ids (class labels) for each mask [N]
+            ignore_masks (Torch.Tensor): ignore mask of pixel that should
+                                         be not included in the loss calcualtion[T, H, W]
+            foreground_categories (list[int[): category_ids that are consider to be foreground
+        """
+        self.masks = masks
+        self.category_ids = category_ids
+        self.ignore_masks = ignore_masks
+        self.foreground_categories = torch.tensor(foreground_categories)
+
+        # lazy computed
+        self.semseg_mask = None
+
+
+    def pin_memory(self):
+        # return self with the pinned memory
+        self.masks = self.masks.pin_memory()
+        self.category_ids = self.category_ids.pin_memory()
+        self.ignore_masks = self.ignore_masks.pin_memory()
+        self.foreground_categories = self.foreground_categories.pin_memory()
+        return self
+
+    def to(self, *args, **kwargs):
+        # like torch.Tensor.to but works inplace. Fore compatibility reasons we return just self
+        self.masks = self.masks.to(*args, **kwargs)
+        self.category_ids = self.category_ids.to(*args, **kwargs)
+        self.ignore_masks = self.ignore_masks.to(*args, **kwargs)
+        self.foreground_categories = self.foreground_categories.to(*args, **kwargs)
+        return self
+
+    @torch.no_grad()
+    def get_semseg_masks(self):
+        # lazy compute the semseg mask an array containing the label at the pixel position.
+        if self.semseg_mask is None:
+            self.semseg_mask = instance_masks_to_semseg_mask(self.masks, self.category_ids)
+        return self.semseg_mask
+
+    def foreground_masks(self):
+        is_foreground = list([True in self.foreground_categories for  c in self.category_ids])
+        return self.masks[is_foreground]
+    @torch.no_grad()
+    def get_foreground_mask(self):
+        return torch.isin(self.get_semseg_masks(), self.foreground_categories).float()
+
 class Batch:
-    def __init__(self, image_seqs, targets, meta_info):
+    def __init__(self, image_seqs, targets: List[MaskTarget], meta_info):
         self.image_seqs = image_seqs
         self.targets = targets
         self.meta_info = meta_info
 
     def pin_memory(self):
         self.image_seqs = self.image_seqs.pin_memory()
-        self.targets = tensor_struct_pin_memory(self.targets)
+        self.targets = list([target.pin_memory() for target in self.targets])
         return self
 
 def collate_fn(samples):
@@ -93,72 +144,6 @@ def collate_fn(samples):
     image_seqs = ImageList.from_image_sequence_list(image_seqs, original_dims)
     targets = pad_masks_to_image(image_seqs, targets)
     return Batch(image_seqs, targets, meta_info)
-
-
-def targets_to(targets, *args, **kwargs):
-    to_targets = []
-    for targets_per_image in targets:
-        to_targets_per_image = {}
-        for k, v in targets_per_image.items():
-            if isinstance(v, torch.Tensor):
-                to_targets_per_image[k] = v.to(*args, **kwargs)
-            else:
-                to_targets_per_image[k] = v
-        to_targets.append(to_targets_per_image)
-    return to_targets
-
-
-def apply_tensor_struct(struct, fname, *args, **kwargs):
-     if isinstance(struct, (list, tuple)):
-        to_struct = []
-        for elem in struct:
-            if hasattr(elem, fname):
-                to_struct.append(getattr(elem, fname)(*args, **kwargs))
-                #print(f"list: to shape {elm.shape}")
-            else:
-                to_struct.append(apply_tensor_struct(elem, fname, *args, **kwargs))
-     elif isinstance(struct, dict):
-        to_struct = {}
-        for k, v in struct.items():
-            if hasattr(v, fname):
-                to_struct[k] = getattr(v, fname)(*args, **kwargs)
-                #print(f"struct: {k} to shape {v.shape}")
-            else:
-                to_struct[k] = apply_tensor_struct(v, fname, *args, **kwargs)
-     else:
-        raise TypeError("Variable of unknown type {} found".format(type(struct)))
-
-     return to_struct
-
-
-def tensor_struct_to(struct, *args, **kwargs):
-    return apply_tensor_struct(struct, "to", *args, **kwargs)
-
-def tensor_struct_pin_memory(struct):
-    return apply_tensor_struct(struct, "pin_memory")
-
-def tensor_struct_to_cuda(struct):
-    return tensor_struct_to(struct, device="cuda:0")
-
-
-def targets_to_cuda(targets):
-    return targets_to(targets, "cuda:0")
-
-
-def nested_dict_to(d, *args, **kwargs):
-    to_dict = dict()
-    for k, v in d.items():
-        if torch.is_tensor(v):
-            to_dict[k] = v.to(*args, **kwargs)
-        elif isinstance(v, (dict, defaultdict)):
-            to_dict[k] = nested_dict_to(v, *args, **kwargs)
-        else:
-            to_dict[k] = v
-    return to_dict
-
-
-def nested_dict_to_cuda(d):
-    return nested_dict_to(d, "cuda:0")
 
 
 def compute_resize_params_2(image_dims, min_resize_dim, max_resize_dim):

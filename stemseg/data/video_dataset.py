@@ -1,7 +1,7 @@
 from stemseg.config import cfg
 from stemseg.utils import transforms
 from stemseg.data.generic_video_dataset_parser import parse_generic_video_dataset
-from stemseg.data.common import compute_resize_params, scale_and_normalize_images
+from stemseg.data.common import compute_resize_params, scale_and_normalize_images, MaskTarget
 from stemseg.data.image_to_seq_augmenter import ImageToSeqAugmenter
 
 from torch.utils.data import Dataset
@@ -101,11 +101,8 @@ class VideoDataset(Dataset):
         masks = masks.resize_as_tensor((new_width, new_height)).permute(1, 0, 2, 3)                            # [N, T, H, W]
         ignore_masks = torch.stack([mask.tensor() for mask in ignore_masks], 0)  # [T, H, W]
 
-        targets = {
-            "masks": masks,
-            "category_ids": torch.tensor(category_labels, dtype=torch.long),
-            "ignore_masks": ignore_masks
-        }
+        category_ids = torch.tensor(category_labels, dtype=torch.long)
+        targets = MaskTarget(masks, category_ids, ignore_masks, meta_info["foreground_categories"])
 
         return images, targets, (image_width, image_height), meta_info
 

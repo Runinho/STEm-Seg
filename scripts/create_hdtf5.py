@@ -45,11 +45,15 @@ def create_masks_hdtf5():
     base_dir = Path(KITTISTEPPaths.train_images_dir())
     dataset_json = KITTISTEPPaths.train_vds_file()
     dataset_json = Path(dataset_json)
+    dataset_json = dataset_json.with_name(dataset_json.stem.replace("_without_mask", "") + ".json")
+    print(f"loading from label information from json: {dataset_json}")
 
     with open(dataset_json, 'rt') as file:
         dataset = json.load(file)
     h5py_file = base_dir / "masks.h5"
 
+    if h5py_file.exists():
+        print(f"mask file already exists {h5py_file}")
 
 
     with h5py.File(h5py_file, "w") as f:

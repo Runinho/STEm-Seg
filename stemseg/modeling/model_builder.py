@@ -1,7 +1,9 @@
 from collections import OrderedDict
 from functools import partial
+from typing import List
+
 from stemseg.utils import ModelOutputConsts as ModelOutput, ModelPaths, LossConsts
-from stemseg.data.common import instance_masks_to_semseg_mask
+from stemseg.data.common import instance_masks_to_semseg_mask, MaskTarget
 from stemseg.modeling.losses import CrossEntropyLoss, EmbeddingLoss
 
 from stemseg.utils.global_registry import GlobalRegistry
@@ -126,28 +128,27 @@ class TrainingModel(nn.Module):
         return output
 
     @torch.no_grad()
-    def resize_masks(self, targets):
+    def resize_masks(self, targets: List[MaskTarget]):
         """
         Downscales masks to the required size
-        :param targets:
-        :return: dict
+        Args:
+            targets (List[MaskTarget]):
+        Returns
+            dict
         """
         assert self.embedding_head_output_scale == self.semseg_output_scale
 
         for target in targets:
             if self.output_resize_scale == 1.0:
-                target['masks'] = F.interpolate(target['masks'].float(),
+                target.masks = F.interpolate(target.masks.float(),
                                                 scale_factor=1./self.embedding_head_output_scale,
                                                 mode='bilinear', align_corners=False)
-                target['masks'] = target['masks'].byte().detach()
+                target.masks = target.masks.byte().detach()
 
-                target['ignore_masks'] = F.interpolate(target['ignore_masks'].unsqueeze(0).float(),
+                target.ignore_masks = F.interpolate(target.ignore_masks.unsqueeze(0).float(),
                                                        scale_factor=1. / self.semseg_output_scale,
                                                        mode='bilinear', align_corners=False)
-                target['ignore_masks'] = target['ignore_masks'].squeeze(0).byte().detach()
-
-            if self.semseg_head is not None:
-                target['semseg_masks'] = instance_masks_to_semseg_mask(target['masks'], target['category_ids'])
+                target.ignore_masks = target.ignore_masks.squeeze(0).byte().detach()
 
         return targets
 
@@ -207,7 +208,7 @@ class TrainingModel(nn.Module):
 
         return embeddings_map, semseg_logits
 
-    def compute_fg_loss(self, fg_logits, targets, output_dict):
+    def compute_fg_loss(self, fg_logits, targets: List[MaskTarget], output_dict):
         """
         Computes the foreground/background loss
         :param fg_logits: tensor(N, T, H, W)
@@ -218,8 +219,8 @@ class TrainingModel(nn.Module):
         loss = 0.
 
         for pred_fg_logits_per_seq, targets_per_seq in zip(fg_logits, targets):
-            gt_semseg_masks_per_seq = targets_per_seq[ModelOutput.SEMSEG_MASKS]
-            ignore_masks_per_seq = targets_per_seq['ignore_masks']
+            gt_semseg_masks_per_seq = targets_per_seq.get_semseg_masks()
+            ignore_masks_per_seq = targets_per_seq.ignore_masks
 
             assert gt_semseg_masks_per_seq.shape[-2:] == pred_fg_logits_per_seq.shape[-2:], \
                 "Shape mismatch between ground truth semseg masks {} and predicted semseg masks {}".format(
@@ -230,8 +231,7 @@ class TrainingModel(nn.Module):
                     gt_semseg_masks_per_seq.shape, ignore_masks_per_seq.shape
                 )
 
-            # foreground is where the class is not 0
-            fg_masks_per_seq = (gt_semseg_masks_per_seq > 0).float()
+            fg_masks_per_seq = targets_per_seq.get_foreground_mask()
             seq_loss = F.binary_cross_entropy_with_logits(pred_fg_logits_per_seq, fg_masks_per_seq, reduction="none")
 
             with torch.no_grad():
