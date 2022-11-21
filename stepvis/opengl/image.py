@@ -10,12 +10,13 @@ from stepvis.opengl.shader.image_shader import ImageShader
 
 
 class ImageRenderer(Renderer):
-    def __init__(self, parent, image: QImage, shader=ImageShader):
-        super().__init__(parent, shader)
+    def __init__(self, parent, image: QImage, shader=ImageShader, shader_kwargs={}):
+        super().__init__(parent, shader, shader_kwargs=shader_kwargs)
         self.image = image
         self.position = QVector4D(0, 0, 5, 1)
         self.size = (1, 1)
         self.alpha = 1
+        self.loaded = False
 
     def set_alpha(self, alpha):
         self.alpha = alpha
@@ -33,6 +34,7 @@ class ImageRenderer(Renderer):
     def load(self):
         self.shader.load()
         self.load_image(self.image)
+        self.loaded = True
 
     def update_shader(self):
         # set all the shader properties
@@ -40,12 +42,20 @@ class ImageRenderer(Renderer):
         self.shader.set_size(self.size)
         self.shader.set_alpha(self.alpha)
 
+    def get_texture_id(self):
+        return self.texture.textureId()
+
+    def draw_texture(self, f):
+        self.shader.draw_with_texture(f, self.get_texture_id())
+
     def render(self, f, projection_matrix):
+        if not self.loaded:
+            self.load()
         if self.shader.program is not None:
             self.shader.program.bind()
             self.shader.set_projection(projection_matrix)
             self.update_shader()
-            self.shader.draw_with_texture(f, self.texture.textureId())
+            self.draw_texture(f)
             self.shader.program.release()
 
 

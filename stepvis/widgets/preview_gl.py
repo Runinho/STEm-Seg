@@ -1,4 +1,4 @@
-"""OpenGl visualization renderer"""
+"""OpenGl visualization renderer, renders the 3D Viewport"""
 import time
 from threading import Timer
 
@@ -43,15 +43,15 @@ class PreviewOpenGL(QOpenGLWidget):
 
     def resizeGL(self, w, h):
         # Update projection matrix and other size related settings:
-        #f = self.context.functions()
+        f = self.context.functions()
         retina_scale = self.devicePixelRatio()
-        glViewport(0, 0, int(self.width() * retina_scale * self.zoom), int(self.height() * retina_scale * self.zoom))
+        f.glViewport(0, 0, int(self.width() * retina_scale * self.zoom), int(self.height() * retina_scale * self.zoom))
         #self.resizeViewport()
 
     def mouseMoveEvent(self, e:QMouseEvent):
         # check if left button is pressed
         self.pos = e.pos().toTuple()
-        self.update()
+        #self.update()
 
     def projection_matrix(self, zoom, offset, rotation):
         projection = QMatrix4x4()
@@ -68,8 +68,8 @@ class PreviewOpenGL(QOpenGLWidget):
         print(f"rendering {self.pos}")
         # Draw the scene:
         f = self.context.functions()
-        glClearColor(1,1,1,1)
-        glClear(GL_COLOR_BUFFER_BIT)
+        f.glClearColor(1,1,1,1)
+        f.glClear(GL_COLOR_BUFFER_BIT)
         f.glEnable(GL_MULTISAMPLE)
         projection_matrix = self.projection_matrix((2, 2), (0, 0), self.pos)
 

@@ -23,12 +23,12 @@ def get_default_cmap():
 fragment_shader = """
 #version 330 core
 in vec2 TexCoord;
-uniform sampler2D ourTexture;
+uniform sampler2D labelTexture;
 uniform vec2 alpha;
 out vec4 FragColor;
 void main()
 {
-    FragColor = texture(ourTexture, TexCoord);
+    FragColor = texture(labelTexture, TexCoord);
     FragColor.a = alpha.x;
     // we use the rgb channel to look up the color in the colormap
     // convert to int
@@ -52,14 +52,10 @@ void main()
 """
 
 class LabelImageShader(ImageShader):
-    def __init__(self, parent):
+    def __init__(self, parent, fragment_shader=fragment_shader):
         super().__init__(parent, fragment_shader=fragment_shader)
 
     def draw_with_texture(self, f,  texture):
         f.glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST)
         f.glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST)
         super().draw_with_texture(f, texture)
-
-    def load(self):
-        if super().load():
-            self.cmap = self.program.uniformLocation("cmap")

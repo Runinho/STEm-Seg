@@ -4,6 +4,7 @@ from OpenGL.raw.GL.ARB.internalformat_query2 import GL_TEXTURE_2D
 from OpenGL.raw.GL.ARB.vertex_shader import GL_FLOAT
 from OpenGL.raw.GL.VERSION.GL_1_0 import GL_TEXTURE_WRAP_S, GL_REPEAT, GL_TEXTURE_WRAP_T, \
     GL_TRIANGLES, GL_TEXTURE_MIN_FILTER, GL_NEAREST, GL_TEXTURE_MAG_FILTER, GL_LINEAR
+from OpenGL.raw.GL.VERSION.GL_1_3 import GL_TEXTURE0
 from PySide6.QtGui import QVector4D, QVector2D
 from PySide6.QtOpenGL import QOpenGLBuffer, QOpenGLVertexArrayObject
 from shiboken6 import VoidPtr
@@ -83,6 +84,8 @@ class ImageShader(Shader):
             # transparency
             self.alpha = self.program.uniformLocation("alpha")
 
+            self.utexture = self.program.uniformLocation("ourTexture")
+
             # Release VBO
             self.vbo.release()
             vao_binder.release()
@@ -102,8 +105,10 @@ class ImageShader(Shader):
         # sadly the float type is not working, so we use the 2vec as workaround
         self.program.setUniformValue(self.alpha, QVector2D(alpha, 0))
 
-    def draw_with_texture(self, f,  texture):
+    def draw_with_texture(self, f, texture):
         vao_binder = QOpenGLVertexArrayObject.Binder(self.vao)
+        self.program.setUniformValue1i(self.utexture, 0)
+        f.glActiveTexture(GL_TEXTURE0)
         f.glBindTexture(GL_TEXTURE_2D, texture)
         f.glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT)
         f.glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT)

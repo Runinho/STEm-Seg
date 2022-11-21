@@ -7,48 +7,26 @@ from PySide6.QtGui import QSurfaceFormat, Qt
 from PySide6.QtWidgets import (
     QApplication,
     QWidget,
-    QHBoxLayout, QSlider, QVBoxLayout, )
+    QHBoxLayout, QSlider, QVBoxLayout, QTabWidget, )
 
-from stemseg.config import cfg
-from stemseg.utils import RepoPaths
-from stepvis.inference_loader import InferenceDataProvider, InferenceSplitType
-from stepvis.opengl.sequence import ImageSequenceRender
-from stepvis.widgets.preview_gl import PreviewOpenGL
+
+from stepvis.widgets.data_source_config import DataSourceConfigWidget
+from stepvis.widgets.visualization import VisualizationWidget
+
+
 # from stepvis.widgets.settings import Settings
 
 
-class PlotWidget(QWidget):
+class PlotWidget(QTabWidget):
     def __init__(self, parent=None):
         super().__init__(parent)
 
-        #  create widgets
-        self.setMinimumWidth(512)
-        self.setMinimumHeight(512)
+        self.visualization = VisualizationWidget(self)
+        self.data_source_config = DataSourceConfigWidget(self, self.visualization.sequence_changed)
 
-        # self.settings = Settings()
-        #self.preview = PreviewMatplotlib()
-        self.preview = PreviewOpenGL()
-        self.timeline = QSlider(orientation=Qt.Horizontal)
-        # self.settings.render.connect(self.preview.on_change)
+        self.addTab(self.visualization, "view")
+        self.addTab(self.data_source_config, "data source")
 
-        #  Create layout
-
-        vlayout = QVBoxLayout()
-        vlayout.addWidget(self.preview, stretch=1)
-        vlayout.addWidget(self.timeline)
-        # hlayout.addWidget(self.settings)
-
-        self.setLayout(vlayout)
-        self.setLayout(vlayout)
-
-        # laod the data
-        # TODO: add option to load the sequence at will
-        cfg_path = RepoPaths.configs_dir() / "kitti_step_2.yaml"
-        cfg.merge_from_file(cfg_path)
-        self.data_provider = InferenceDataProvider(InferenceSplitType.VAL)
-        self.preview.to_render = ImageSequenceRender(self.preview,
-                                                     self.data_provider.sequence_providers[0])
-        self.timeline.valueChanged.connect(self.preview.to_render.time_changed)
 
 def sigint_handler(*args):
     print("closing qt because of sigint")

@@ -1,8 +1,11 @@
 # load the inference data
+import abc
 from collections import defaultdict
+from typing import Union, Dict
+from pathlib import Path
 
 import numpy as np
-from PIL.Image import Image
+from PIL import Image
 from tqdm import tqdm
 from enum import Enum
 import torch.nn.functional as F
@@ -29,20 +32,52 @@ class VisualizationKittiMOTSOutputGenerator(KittiMOTSOutputGenerator):
 # provides all the data that is required for the visualization
 # provides only data for one sequence
 class InferenceDataProvider:
-    def __init__(self, type:InferenceSplitType):
+    def __init__(self, split_type:InferenceSplitType):
         vds_file_map = {
             InferenceSplitType.TRAIN: KITTISTEPPaths.train_vds_file,
             InferenceSplitType.VAL: KITTISTEPPaths.val_vds_file
         }
         # load the label filename
-        vds_file = vds_file_map[type]()
+        vds_file = vds_file_map[split_type]()
         self.sequences, self.meta_info = parse_generic_video_dataset(KITTISTEPPaths.train_images_dir(),
                                                                      vds_file)
         self.categories = self.meta_info["category_labels"]
+        self.init_providers()
 
+    @abc.abstractmethod
+    def init_providers(self):
+        raise NotImplementedError()
+
+    def get_sequence_ids(self):
+        return [s.id for s in self.sequences]
+
+    def get_sequence_by_id(self, id: Union[int, str]):
+        converter = lambda x: x # identity function (do nothing)
+        if type(id) is int:
+            converter = int
+        id_2_seq = {converter(s.id): p for s, p in zip(self.sequences, self.sequence_providers)}
+        if id in id_2_seq:
+            return id_2_seq[id]
+        else:
+            print(f"id {id} not in available sequences: {', '.join(id_2_seq.keys())}")
+
+class OfflineInferenceDataProvider(InferenceDataProvider):
+
+    def __init__(self, split_type:InferenceSplitType,  pred_location:Path):
+        self.pred_location = pred_location
+        super().__init__(split_type)
+    def init_providers(self):
+        self.sequence_providers = list([OfflineInferenceDataProviderSequence(s, self.pred_location, self.categories) for s in self.sequences])
+
+class OnlineInferenceDataProvider(InferenceDataProvider):
+
+    def __init__(self, model_path, split_type=InferenceSplitType.VAL):
+        self.model_path = model_path
+        super().__init__(split_type=split_type)
+
+    def init_providers(self):
         dataset= "kittistep"
         # TODO: make this customizable
-        model_path = "/home/rune/thesis/data/models/e10_count_e7_foreground_fix/020000.pth"
         seediness_thresh = 0.25
         output_resize_scale = 1
         semseg_averaging_on_gpu = False
@@ -61,8 +96,9 @@ class InferenceDataProvider:
         max_tracks = cfg.DATA.KITTI_MOTS.MAX_INFERENCE_TRACKS
         preload_images = False
 
+        # move model loading to the inference part and not to the init part...
         self.track_generator = TrackGenerator(
-            self.sequences, dataset, output_generator, "tmp", model_path,
+            self.sequences, dataset, output_generator, "tmp", self.model_path,
             save_vis=save_vis,
             seediness_thresh=seediness_thresh,
             frame_overlap=frame_overlap,
@@ -72,14 +108,37 @@ class InferenceDataProvider:
             semseg_averaging_on_gpu=semseg_averaging_on_gpu,
             clustering_device=clustering_device
         )
-        self.sequence_providers = list([InferenceDataProviderSequence(self.track_generator, s) for s in self.track_generator.sequences])
-
+        self.sequences = self.track_generator.sequences
+        self.sequence_providers = list([OnlineInferenceDataProviderSequence(self.track_generator, s, self.categories) for s in self.track_generator.sequences])
 
 class InferenceDataProviderSequence:
+    def __init__(self, sequence:GenericVideoSequence, categories: Dict[int, str]):
+        self.sequence = sequence
+        self.categories = categories
 
-    def __init__(self, track_generator, sequence:GenericVideoSequence):
+    def __len__(self) -> int:
+        return len(self.sequence)
+
+    @abc.abstractmethod
+    def get_images(self) -> np.ndarray:
+        raise NotImplementedError()
+
+    @abc.abstractmethod
+    def get_output(self) -> np.ndarray:
+        raise NotImplementedError()
+
+class OnlineInferenceDataProviderSequence(InferenceDataProviderSequence ):
+    def __init__(self, track_generator, sequence, categories):
+        """calculate the model output with the model and input data
+
+        Args:
+            track_generator (TrackGenerator): used to create the output of the model
+            sequence (GenericVideoSequence): input datat
+            categories (Dict[int, str]): dict of the category names
+        """
+        super().__init__(sequence, categories)
         self.track_generator = track_generator
-        self.sequence = sequence #.extract_subsequence(range(10))
+        self.categories = categories
         self.images = None
         self.output = None
 
@@ -161,3 +220,26 @@ class InferenceDataProviderSequence:
         if self.output is None:
             self.run_inference()
         return self.output
+
+
+class OfflineInferenceDataProviderSequence(InferenceDataProviderSequence):
+    def __init__(self, sequence, result_folder, categories):
+        """reads results from disk
+
+        Args:
+            sequence (GenericVideoSequence): input data
+            result_folder (Path): folder that contains the output of the model in the STEP image format
+        """
+        super().__init__(sequence, categories)
+        self.result_folder = result_folder
+
+    def get_images(self):
+        return self.sequence.load_images()
+
+    def get_outputs(self):
+        imgs = [np.array(Image.open(self.result_folder / f)) for f in self.sequence.image_paths]
+        return np.array(imgs)
+
+
+#TODO: create common type
+InferenceDataProviderSequence = Union[OnlineInferenceDataProviderSequence, OfflineInferenceDataProviderSequence]
