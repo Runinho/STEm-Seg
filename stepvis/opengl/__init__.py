@@ -1,4 +1,4 @@
-from PySide6.QtGui import QImage
+from PyQt5.QtGui import QImage
 
 
 # small helper

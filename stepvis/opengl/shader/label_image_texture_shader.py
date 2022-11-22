@@ -3,8 +3,7 @@
 import OpenGL.raw.GL.VERSION.GL_1_3 as gl_constants
 from OpenGL.raw.GL.VERSION.GL_1_0 import GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT, \
     GL_TEXTURE_WRAP_T, GL_TEXTURE_MIN_FILTER, GL_TEXTURE_MAG_FILTER, GL_LINEAR, GL_TRIANGLES
-from PySide6.QtGui import QOpenGLFunctions
-from PySide6.QtOpenGL import QOpenGLVertexArrayObject
+from PyQt5.QtGui import QOpenGLVertexArrayObject
 
 from stepvis.opengl.shader.image_shader import ImageShader
 from stepvis.opengl.shader.label_image_shader import LabelImageShader
@@ -100,15 +99,15 @@ class LabelImageTextureShader(LabelImageShader):
     def set_channel(self, new_channel):
         self.program.setUniformValue(self.channel, new_channel)
 
-    def draw_with_texture(self, f:QOpenGLFunctions, texture, textureIds):
+    def draw_with_texture(self, f, texture, textureIds):
         vao_binder = QOpenGLVertexArrayObject.Binder(self.vao)
-        self.program.setUniformValue1i(self.label_texture, 0)
+        self.program.setUniformValue(self.label_texture, 0)
         f.glActiveTexture(gl_constants.GL_TEXTURE0)
         f.glBindTexture(GL_TEXTURE_2D, texture)
 
         # set all the textures
         for i, (k, t) in enumerate(self.textures.items()):
-            self.program.setUniformValue1i(t, i+1)
+            self.program.setUniformValue(t, i+1)
             f.glActiveTexture(getattr(gl_constants, f"GL_TEXTURE{i + 1}"))
             f.glBindTexture(GL_TEXTURE_2D, textureIds[k])
 

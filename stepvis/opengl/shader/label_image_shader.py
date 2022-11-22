@@ -2,11 +2,8 @@
 from typing import Sequence
 
 import matplotlib
-import numpy as np
 from OpenGL.raw.GL.VERSION.GL_1_0 import GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST, \
     GL_TEXTURE_MAG_FILTER
-from PySide6.QtGui import QVector3D
-from shiboken6 import VoidPtr
 
 from stepvis.opengl.shader.image_shader import ImageShader
 

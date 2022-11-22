@@ -3,8 +3,8 @@ import json
 from pathlib import Path
 from typing import Union
 
-from PySide6.QtCore import Slot, Signal
-from PySide6.QtWidgets import QWidget, QLabel, QVBoxLayout, QComboBox, QLineEdit, QFormLayout, \
+from PyQt5.QtCore import pyqtSlot as Slot, pyqtSignal as Signal
+from PyQt5.QtWidgets import QWidget, QLabel, QVBoxLayout, QComboBox, QLineEdit, QFormLayout, \
     QGroupBox, QPushButton
 from stepvis.inference_loader import OfflineInferenceDataProvider, InferenceSplitType, \
     OnlineInferenceDataProvider, InferenceDataProvider, InferenceDataProviderSequence
@@ -139,7 +139,6 @@ class OnlineDataSourceConfigWidget(BaseDataSourceConfigWidget):
             self.file.setText(obj["checkpoint"])
 
 class DataSourceConfigWidget(QWidget):
-    data_provider_changed = Signal(InferenceDataProviderSequence)
 
     def __init__(self, parent=None, sequence_changed_cb=None):
         super().__init__(parent)
@@ -195,7 +194,6 @@ class DataSourceConfigWidget(QWidget):
         self.load_available_sequences()
         self.cm.set(conf)
 
-    @Slot()
     def source_type_changed(self, new_type):
         print(f"data source changed to {new_type}")
 
@@ -222,10 +220,18 @@ class DataSourceConfigWidget(QWidget):
 
         source_type = self.source_type.currentText()
         if source_type == "Online":
+            model_path = self.online.file.text()
+            if len(model_path) == 0:
+                self.sequence_status.setText("model_file is empty")
+                return
             split = inference_split_mapping[self.online.source_type.currentText()]
             self.data_provider = OnlineInferenceDataProvider(split_type=split,
-                                                             model_path=self.online.file.text())
+                                                             model_path=model_path)
         elif source_type == "Offline":
+            folder = self.offline.folder.text()
+            if len(folder) == 0:
+                self.sequence_status.setText("prediction folder name is empty")
+                return
             split = inference_split_mapping[self.offline.source_type.currentText()]
             self.data_provider = OfflineInferenceDataProvider(split_type=split,
                                                               pred_location=self.offline.folder.text())
