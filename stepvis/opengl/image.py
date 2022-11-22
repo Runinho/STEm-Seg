@@ -2,8 +2,8 @@
 from OpenGL.raw.GL.ARB.internalformat_query2 import GL_TEXTURE_2D
 from OpenGL.raw.GL.VERSION.GL_1_0 import GL_TEXTURE_WRAP_S, GL_REPEAT, GL_TEXTURE_WRAP_T, \
     GL_TRIANGLES
-from PySide6.QtGui import QImage, QVector4D
-from PySide6.QtOpenGL import QOpenGLTexture, QOpenGLFramebufferObject
+from PyQt5.QtCore import QSize
+from PyQt5.QtGui import QImage, QVector4D, QOpenGLTexture
 
 from stepvis.opengl.base import Renderer
 from stepvis.opengl.shader.image_shader import ImageShader
@@ -23,7 +23,7 @@ class ImageRenderer(Renderer):
 
     def load_image(self, image: QImage):
         # Setup texture
-        self.size = image.size().toTuple()
+        self.size = (image.size().width(), image.size().height())
         self.texture = QOpenGLTexture(image)
         self.texture.setMinificationFilter(QOpenGLTexture.LinearMipMapLinear)
         self.texture.setMagnificationFilter(QOpenGLTexture.Linear)

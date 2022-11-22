@@ -1,8 +1,7 @@
 # renders a text with solid background that can be used as texture for the mask image
 from OpenGL.raw.GL.VERSION.GL_1_0 import GL_COLOR_BUFFER_BIT
-from PySide6.QtCore import QRect, QPoint
-from PySide6.QtGui import QPainter, QPen, Qt
-from PySide6.QtOpenGL import QOpenGLTexture, QOpenGLFramebufferObject, QOpenGLPaintDevice
+from PyQt5.QtCore import QRect, QPoint, Qt
+from PyQt5.QtGui import QPainter, QPen, QOpenGLFramebufferObject, QOpenGLPaintDevice
 
 from stepvis.opengl.shader.image_shader import ImageShader
 

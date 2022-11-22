@@ -1,4 +1,4 @@
-from PySide6.QtOpenGL import QOpenGLShaderProgram, QOpenGLShader
+from PyQt5.QtGui import QOpenGLShaderProgram, QOpenGLShader
 
 
 class Shader:

@@ -1,6 +1,6 @@
 # handel the main visualization tab with its view config manages e.g the timeline
-from PySide6.QtCore import Qt
-from PySide6.QtWidgets import QWidget, QSlider, QVBoxLayout
+from PyQt5.QtCore import Qt
+from PyQt5.QtWidgets import QWidget, QSlider, QVBoxLayout
 
 from stepvis.inference_loader import InferenceDataProvider
 from stepvis.opengl.sequence import ImageSequenceRender

@@ -1,5 +1,5 @@
 # renders a text on a square
-from PySide6.QtGui import QImage
+from PyQt5.QtGui import QImage
 
 from stepvis.opengl.image import ImageRenderer
 from stepvis.opengl.shader.label_texture import LabelTextureShader

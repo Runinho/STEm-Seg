@@ -1,15 +1,8 @@
 """OpenGl visualization renderer, renders the 3D Viewport"""
-import time
-from threading import Timer
-
-import numpy as np
-from OpenGL.GL import *
-from PySide6.QtCore import Slot, QTimer, QPoint
-from PySide6.QtGui import QOpenGLContext, QNativeGestureEvent, Qt, \
-    QWheelEvent, QCursor, QMouseEvent, QImage, QMatrix4x4
-from PySide6.QtOpenGLWidgets import QOpenGLWidget
-
-from stepvis.opengl.image import ImageRenderer
+import OpenGL.GL as gl
+from PyQt5.QtGui import QOpenGLContext, \
+    QMouseEvent, QMatrix4x4
+from PyQt5.QtWidgets import QOpenGLWidget
 
 t = 0
 
@@ -21,8 +14,6 @@ class PreviewOpenGL(QOpenGLWidget):
         self.zoom = 1
         self.pos = (0,0)
 
-        #image = QImage("/home/rune/projects/dreambooth/data/output/moneyboy/mb_space_upres.png")
-        #self.example_image = ImageRenderer(self, image)
         self.to_render = None
 
         # track mouse
@@ -33,24 +24,24 @@ class PreviewOpenGL(QOpenGLWidget):
 
     def initializeGL(self):
         # Set up the rendering context, load shaders and other resources, etc.:
-        f = self.context.functions()
+        f = gl
         f.glClearColor(1.0, 1.0, 1.0, 1.0);
-        f.glEnable(GL_MULTISAMPLE)
-        f.glEnable(GL_BLEND)
-        f.glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA)
+        f.glEnable(gl.GL_MULTISAMPLE)
+        f.glEnable(gl.GL_BLEND)
+        f.glBlendFunc(gl.GL_SRC_ALPHA, gl.GL_ONE_MINUS_SRC_ALPHA)
 
         #self.play()
 
     def resizeGL(self, w, h):
         # Update projection matrix and other size related settings:
-        f = self.context.functions()
+        f = gl
         retina_scale = self.devicePixelRatio()
         f.glViewport(0, 0, int(self.width() * retina_scale * self.zoom), int(self.height() * retina_scale * self.zoom))
         #self.resizeViewport()
 
     def mouseMoveEvent(self, e:QMouseEvent):
         # check if left button is pressed
-        self.pos = e.pos().toTuple()
+        self.pos = e.pos()
         #self.update()
 
     def projection_matrix(self, zoom, offset, rotation):
@@ -67,10 +58,10 @@ class PreviewOpenGL(QOpenGLWidget):
     def paintGL(self):
         print(f"rendering {self.pos}")
         # Draw the scene:
-        f = self.context.functions()
+        f = gl
         f.glClearColor(1,1,1,1)
-        f.glClear(GL_COLOR_BUFFER_BIT)
-        f.glEnable(GL_MULTISAMPLE)
+        f.glClear(gl.GL_COLOR_BUFFER_BIT)
+        f.glEnable(gl.GL_MULTISAMPLE)
         projection_matrix = self.projection_matrix((2, 2), (0, 0), self.pos)
 
         if self.to_render != None:

@@ -2,13 +2,9 @@
 import signal
 import sys
 
-from PySide6.QtCore import QTimer
-from PySide6.QtGui import QSurfaceFormat, Qt
-from PySide6.QtWidgets import (
-    QApplication,
-    QWidget,
-    QHBoxLayout, QSlider, QVBoxLayout, QTabWidget, )
-
+from PyQt5.QtCore import QTimer
+from PyQt5.QtGui import QSurfaceFormat
+from PyQt5.QtWidgets import QTabWidget, QApplication
 
 from stepvis.widgets.data_source_config import DataSourceConfigWidget
 from stepvis.widgets.visualization import VisualizationWidget
