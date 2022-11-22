@@ -30,6 +30,8 @@ class InstanceRenderer(LabelImageRenderer):
 
         #TODO: create text Textures
 
+        #self.text_labels = [TextImageRenderer(self.parent, (1, 0, 0, 1), "top-left", position=(-id_img.shape[1]/2, -id_img.shape[0]/2)), ]
+
     def render(self, f, projection_matrix):
         super().render(f, projection_matrix)
         # mmh h
