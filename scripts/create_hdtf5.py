@@ -40,17 +40,19 @@ def calculate_shape(seq, width, height):
         i += len(seg.items())
     return (i, width, height)
 
-def create_masks_hdtf5():
+def create_masks_hdtf5(base_dir: Path, dataset_json: Path):
     print("converting masks")
-    base_dir = Path(KITTISTEPPaths.train_images_dir())
-    dataset_json = KITTISTEPPaths.train_vds_file()
     dataset_json = Path(dataset_json)
     dataset_json = dataset_json.with_name(dataset_json.stem.replace("_without_mask", "") + ".json")
     print(f"loading from label information from json: {dataset_json}")
 
     with open(dataset_json, 'rt') as file:
         dataset = json.load(file)
-    h5py_file = base_dir / "masks.h5"
+    h5py_filename = f"{dataset_json.stem}_masks.h5"
+    h5py_file = base_dir / h5py_filename
+
+    # save the maskfilename in the json
+    dataset["meta"]["mask_filename"] = h5py_filename
 
     if h5py_file.exists():
         print(f"mask file already exists {h5py_file}")
@@ -81,7 +83,8 @@ def create_masks_hdtf5():
 
 
 if __name__ == "__main__":
-    create_images_hdtf5()
-    create_masks_hdtf5()
+    #create_images_hdtf5()
+    create_masks_hdtf5(Path(KITTISTEPPaths.train_images_dir()), KITTISTEPPaths.train_vds_file())
+    create_masks_hdtf5(Path(KITTISTEPPaths.train_images_dir()), KITTISTEPPaths.val_vds_file())
     print("done.")
 

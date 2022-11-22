@@ -64,6 +64,7 @@ def parse_generic_video_dataset(base_dir, dataset_json) -> Tuple[
         dataset = json.load(file)
 
     meta_info = dataset["meta"]
+    mask_filename = meta_info["mask_filename"]
 
     # convert instance and category IDs from str to int
     meta_info["category_labels"] = {int(k): v for k, v in meta_info["category_labels"].items()}
@@ -84,7 +85,7 @@ def parse_generic_video_dataset(base_dir, dataset_json) -> Tuple[
             assert seg_iids == set(seq["categories"].keys()), \
                    f"Instance ID mismatch: {seg_iids} vs. {set(seq['categories'].keys())}"
 
-    seqs = [GenericVideoSequence(base_dir, **seq) for seq in dataset["sequences"]]
+    seqs = [GenericVideoSequence(base_dir, mask_filename, **seq) for seq in dataset["sequences"]]
 
     return seqs, meta_info
 
@@ -92,7 +93,7 @@ def parse_generic_video_dataset(base_dir, dataset_json) -> Tuple[
 class GenericVideoSequence:
     """continuous image sequence"""
 
-    def __init__(self, base_dir, image_paths, height, width, id, segmentations=None,
+    def __init__(self, base_dir, mask_filename, image_paths, height, width, id, segmentations=None,
                  categories=None, **kwargs):
         """Stores all information to generated label and input data for a image sequence.
 
@@ -165,6 +166,8 @@ class GenericVideoSequence:
 
         Args:
             base_dir (Path): Directory of the datset
+            mask_filename (str): name of the hdtf5 file containing the masks.
+                                 (see scripts/create_hdtf5.py)
             image_paths (List): List of image paths
             height (int): Image height
             width (int): Image width
@@ -189,6 +192,7 @@ class GenericVideoSequence:
         self.image_paths = list([Path(f) for f in image_paths])
         self.image_dims = (height, width)
         self.id = id
+        self.mask_filename = mask_filename
 
         self.segmentations = segmentations
         self.instance_categories = categories
@@ -254,7 +258,7 @@ class GenericVideoSequence:
         if frame_idxes is None:
             frame_idxes = list(range(len(self.image_paths)))
 
-        f = get_hdtf(self.base_dir, "masks")
+        f = get_hdtf(self.base_dir, self.mask_filename[:-3])
         dataset = f[self.image_paths[0].parts[0]]
         masks = []
         # iterate over the time
@@ -262,10 +266,10 @@ class GenericVideoSequence:
             masks_t = []
 
             for instance_id in self.instance_ids:
-                if instance_id in self.segmentations[t]:
+                if instance_id in self.segmentations[t]: # self.segmentations is the mask id for the sequence
                     masks_t.append(np.ascontiguousarray(dataset[self.segmentations[t][instance_id]]))
                 else:
-                    masks_t.append(np.zeros(self.image_dims, np.uint8))
+                    masks_t.append(np.zeros(self.image_dims, np.bool))
 
             masks.append(masks_t)
         return masks
@@ -343,6 +347,7 @@ class GenericVideoSequence:
             for t, segmentations_t in enumerate(self.segmentations) if t in frame_idxes
         ]
         return self.__class__(self.base_dir,
+                              self.mask_filename,
                               id=new_id if new_id else self.id,
                               height=self.image_dims[0],
                               width=self.image_dims[1],
