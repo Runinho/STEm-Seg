@@ -47,7 +47,7 @@ class ImageSequenceRender:
 
         render_overlay(self.instance_renderer, 0.5)
 
-        self.test.render(f, projection_matrix)
+        #self.test.render(f, projection_matrix)
         # increase image index
         #self.t = (self.t + 1) % len(self.image_renderer)
 

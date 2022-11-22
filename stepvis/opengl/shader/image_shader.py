@@ -17,14 +17,15 @@ layout (location = 0) in vec2 vPosition;
 uniform mat4 projection; // projection matrix
 uniform vec4 position;   // center position of the image
 uniform vec2 size;       // width and height of the image
+uniform float scale;
 
 out vec2 TexCoord;
 
 void main()
 {
     gl_Position = projection *
-                  (vec4((vPosition.x - 0.5) * size.x + position.x,
-                        (vPosition.y - 0.5) * size.y + position.x,
+                  (vec4((vPosition.x - 0.5) * size.x * scale + position.x,
+                        (vPosition.y - 0.5) * size.y * scale + position.y,
                          position.z, 1.0));
     TexCoord = vec2(vPosition.x, vPosition.y);
 }
@@ -39,7 +40,9 @@ out vec4 FragColor;
 void main()
 {
     FragColor = texture(ourTexture, TexCoord);
-    FragColor.a = alpha.x;
+    if(alpha.x >= 0){
+        FragColor.a = alpha.x;
+    }
 } 
 """
 
@@ -79,6 +82,7 @@ class ImageShader(Shader):
             self.position = self.program.uniformLocation("position")
             self.projection = self.program.uniformLocation("projection")
             self.size = self.program.uniformLocation("size")
+            self.scale = self.program.uniformLocation("scale")
             # transparency
             self.alpha = self.program.uniformLocation("alpha")
 
@@ -98,6 +102,9 @@ class ImageShader(Shader):
 
     def set_size(self, size):
         self.program.setUniformValue(self.size, QVector2D(*size))
+
+    def set_scale(self, scale):
+        self.program.setUniformValue(self.scale, float(scale))
 
     def set_alpha(self, alpha):
         # sadly the float type is not working, so we use the 2vec as workaround

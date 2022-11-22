@@ -1,5 +1,5 @@
 # shader to render label annotations
-from typing import Sequence
+from functools import lru_cache
 
 import matplotlib
 from OpenGL.raw.GL.VERSION.GL_1_0 import GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST, \
@@ -7,7 +7,7 @@ from OpenGL.raw.GL.VERSION.GL_1_0 import GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, G
 
 from stepvis.opengl.shader.image_shader import ImageShader
 
-
+@lru_cache()
 def get_default_cmap():
     colors = list(matplotlib.cm.get_cmap("Dark2").colors) + \
              list(matplotlib.cm.get_cmap("Set1").colors) + \

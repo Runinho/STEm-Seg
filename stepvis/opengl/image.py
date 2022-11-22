@@ -10,12 +10,19 @@ from stepvis.opengl.shader.image_shader import ImageShader
 
 
 class ImageRenderer(Renderer):
-    def __init__(self, parent, image: QImage, shader=ImageShader, shader_kwargs={}):
+    def __init__(self, parent, image: QImage, position=None, scale=1,
+                 shader=ImageShader, shader_kwargs={}):
         super().__init__(parent, shader, shader_kwargs=shader_kwargs)
         self.image = image
         self.position = QVector4D(0, 0, 5, 1)
+        if position is not None:
+            if len(position) == 2:
+                self.position = QVector4D(position[0], position[1], 5, 1)
+            else:
+                self.position = position
         self.size = (1, 1)
         self.alpha = 1
+        self.scale = scale
         self.loaded = False
 
     def set_alpha(self, alpha):
@@ -41,6 +48,7 @@ class ImageRenderer(Renderer):
         self.shader.set_position(self.position)
         self.shader.set_size(self.size)
         self.shader.set_alpha(self.alpha)
+        self.shader.set_scale(self.scale)
 
     def get_texture_id(self):
         return self.texture.textureId()
