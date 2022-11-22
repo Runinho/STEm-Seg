@@ -9,7 +9,7 @@ S = TypeVar("S", bound=Shader)
 
 def freeze(obj):
     if type(obj) is dict:
-        return frozenset({k: freeze(v) for k, v in obj.items()})
+        return frozenset({k: freeze(v) for k, v in obj.items()}.items())
     if type(obj) is list:
         return tuple([freeze(x) for x in obj])
     return obj
