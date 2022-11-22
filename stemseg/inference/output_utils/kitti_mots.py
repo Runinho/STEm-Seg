@@ -169,12 +169,14 @@ class KittiMOTSOutputGenerator(object):
                     "image_height": image_height,
                     "image_width": image_width,
                     "instance_id": instance_id_mapping[instance_id],
-                    "mask": rle_mask
+                    "mask": rle_mask,
+                    "raw_mask": mask_t == instance_id,
                 })
 
         self.add_sequence_result(sequence, instance_rle_masks, instance_semantic_label_votes)
 
-        return instances_to_keep, {v: k for k, v in instance_id_mapping.items()}
+        return instances_to_keep, {v: k for k, v in instance_id_mapping.items()},\
+               instance_rle_masks, instance_semantic_label_votes
 
     def add_sequence_result(self, seq, instance_rle_masks, instance_semantic_label_votes):
         # assign semantic label to each instance based on max votes
