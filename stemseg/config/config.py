@@ -11,6 +11,8 @@ from typing import Dict, Union, List
 
 import yaml
 
+from stemseg.utils import RepoPaths
+
 
 def allow_immutable(func):
     """decorator to override immutability
@@ -308,6 +310,16 @@ class YamlConfig(dict):
         yaml_config = cls(d, '')
         return yaml_config
 
+
+def load_global(name):
+    """overwrite the global cfg with the default config and then load the config in `name`"""
+    global cfg
+    # reload with defaults
+    # TODO: relaoding of the default values is not realy working i don't know why though :(
+    #cfg = YamlConfig.load_from_file(Path(__file__).parent / 'defaults.yaml')
+    # load config
+    cfg_path = RepoPaths.configs_dir() / name
+    cfg.merge_from_file(cfg_path)
 
 # Init global cfg object with the values in defaults.yaml
 cfg = YamlConfig.load_from_file(Path(__file__).parent / 'defaults.yaml')
