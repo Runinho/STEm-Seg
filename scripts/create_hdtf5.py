@@ -83,7 +83,7 @@ def create_masks_hdtf5(base_dir: Path, dataset_json: Path):
 
 
 if __name__ == "__main__":
-    #create_images_hdtf5()
+    create_images_hdtf5()
     create_masks_hdtf5(Path(KITTISTEPPaths.train_images_dir()), KITTISTEPPaths.train_vds_file())
     create_masks_hdtf5(Path(KITTISTEPPaths.train_images_dir()), KITTISTEPPaths.val_vds_file())
     print("done.")
