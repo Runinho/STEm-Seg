@@ -40,6 +40,7 @@ class LabelTextureShader(ImageShader):
     def initialize(self, f):
         if not self.initialized:
             # render the framebuffer once
+            half_rect_size = int(self.texture_size/2)
             self.framebuffer.bind()
             device = QOpenGLPaintDevice(self.drawRectSize)
             painter = QPainter()
@@ -54,9 +55,11 @@ class LabelTextureShader(ImageShader):
             # update font size
             QFont = font = painter.font()
             font.setPointSize(font.pointSize() * 2.5)
+            # translate because we want to rotate around the center of the image
+            painter.translate(half_rect_size, half_rect_size);
             painter.rotate(self.angle)
             painter.setFont(font)
-            painter.drawText(QPoint(20,20), self.text)
+            painter.drawText(QRect(-half_rect_size, -half_rect_size, self.texture_size, self.texture_size), Qt.AlignVCenter | Qt.AlignHCenter, self.text)
             f.glClearColor(1, 1, 1, 1)
             painter.end()
             self.framebuffer.release()

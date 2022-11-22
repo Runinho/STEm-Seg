@@ -1,19 +1,14 @@
 # image sequence
-from typing import List
 
 from OpenGL.raw.GL.VERSION.GL_1_0 import GL_SRC_ALPHA, GL_BLEND, GL_ONE_MINUS_SRC_ALPHA
-from PySide6.QtGui import QImage
 
 from stepvis.inference_loader import OnlineInferenceDataProviderSequence
+from stepvis.opengl import numpy2qimage
 from stepvis.opengl.image import ImageRenderer
-from stepvis.opengl.label_image import LabelImageRenderer
 from stepvis.opengl.label_image_texture import LabelImageTextureRenderer
+from stepvis.opengl.instance import InstanceRenderer
 from stepvis.opengl.text_image import TextImageRenderer
 
-
-def numpy2qiamge(img):
-    h, w, _ = img.shape
-    return QImage(img.data, w, h, 3 * w, QImage.Format_BGR888)
 
 class ImageSequenceRender:
     def __init__(self, parent, sequence:OnlineInferenceDataProviderSequence):
@@ -28,12 +23,13 @@ class ImageSequenceRender:
         images = self.sequence.get_images()
         outputs = self.sequence.get_outputs()
 
-        self.image_renderer = list([ImageRenderer(self.parent, numpy2qiamge(img)) for img in images])
-        self.mask_renderer = list([LabelImageTextureRenderer(self.parent, numpy2qiamge(img), self.sequence.categories) for img in outputs])
+        self.image_renderer = list([ImageRenderer(self.parent, numpy2qimage(img)) for img in images])
+        self.mask_renderer = list([LabelImageTextureRenderer(self.parent, numpy2qimage(img), self.sequence.categories) for img in outputs])
+        self.instance_renderer = list([InstanceRenderer(self.parent, img) for img in outputs])
         self.test = TextImageRenderer(self.parent, (1, 0, 0, 1), "LOL")
 
     def load(self):
-        for renderer in self.image_renderer + self.mask_renderer:
+        for renderer in self.image_renderer + self.mask_renderer + self.instance_renderer:
             renderer.load()
         self.loaded = True
         self.test.load()
@@ -44,11 +40,14 @@ class ImageSequenceRender:
         f.glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA)
         f.glEnable(GL_BLEND)
         self.image_renderer[self.t].render(f, projection_matrix)
-        mask_renderer =  self.mask_renderer[self.t]
-        mask_renderer.set_alpha(0.5)
-        mask_renderer.render(f, projection_matrix)
-        #self.test.render(f, projection_matrix)
+        def render_overlay(overlay, alpha):
+            overlay =  overlay[self.t]
+            overlay.set_alpha(alpha)
+            overlay.render(f, projection_matrix)
 
+        render_overlay(self.instance_renderer, 0.5)
+
+        self.test.render(f, projection_matrix)
         # increase image index
         #self.t = (self.t + 1) % len(self.image_renderer)
 

@@ -32,7 +32,7 @@ void main()
     FragColor.a = alpha.x;
     // we use the rgb channel to look up the color in the colormap
     // convert to int
-    int index = (int) (FragColor.b * 256);
+    int index = (int) (FragColor.r * 256);
     switch(index % 32){
         //case x:
         //    FragColor.rgb = vec3(*c);
@@ -41,6 +41,10 @@ void main()
          "".join([f"case {i}: \n FragColor.rgb = vec3({','.join([str(c) for c in colors])}); break;\n"
                   for i, colors in enumerate(get_default_cmap())])\
         + """
+    }
+    // hide the background
+    if(index == 0){
+        FragColor.a = 0;
     }
     //FragColor.b = FragColor.b * 10;
     // FragColor.b = 1;

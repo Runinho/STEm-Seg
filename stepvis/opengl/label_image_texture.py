@@ -1,3 +1,5 @@
+from typing import Dict
+
 from stepvis.opengl.image import ImageRenderer
 from stepvis.opengl.text_image import TextImageRenderer
 from stepvis.opengl.shader.label_image_shader import get_default_cmap
@@ -5,7 +7,7 @@ from stepvis.opengl.shader.label_image_texture_shader import LabelImageTextureSh
 
 
 class LabelImageTextureRenderer(ImageRenderer):
-    def __init__(self, parent, image, categories, channel=0):
+    def __init__(self, parent, image, categories: Dict[int, str], channel=0):
         super().__init__(parent,
                          image,
                          shader=LabelImageTextureShader,
@@ -17,8 +19,8 @@ class LabelImageTextureRenderer(ImageRenderer):
     def load(self):
         super().load()
         cmap = get_default_cmap()
-        self.textures = {k: TextImageRenderer(self.parent, (*color, 1), text)
-                              for color, (k, text) in zip(cmap, self.categories.items())}
+        self.textures = {k: TextImageRenderer(self.parent, (*cmap[k%len(cmap)], 1), text)
+                              for (k, text) in self.categories.items()}
         for texture in self.textures.values():
             texture.load()
 

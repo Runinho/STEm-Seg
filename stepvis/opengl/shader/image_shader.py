@@ -36,7 +36,6 @@ fragment_shader = """
 in vec2 TexCoord;
 uniform sampler2D ourTexture;
 uniform vec2 alpha;
-uniform vec3 cmap[32]; // 32 images
 out vec4 FragColor;
 void main()
 {
