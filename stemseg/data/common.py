@@ -77,17 +77,16 @@ def pad_masks_to_image(image_seqs, targets: List['MaskTarget']):
 
     return targets
 
-# contains all the information to calculate the loss
 class MaskTarget:
     def __init__(self, masks, category_ids, ignore_masks, foreground_categories):
-        """Contains the label information for one sequence and is used to calcualte the losses.
+        """Contains the label information for one sequence and is used to calculate the losses.
 
         Args:
             masks (Torch.Tensor): masks for each id and timestep. [N, T, H, W]
             category_ids (Torch.Tensor): category_ids (class labels) for each mask [N]
             ignore_masks (Torch.Tensor): ignore mask of pixel that should
-                                         be not included in the loss calcualtion[T, H, W]
-            foreground_categories (list[int[): category_ids that are consider to be foreground
+                                         be not included in the loss calculation[T, H, W]
+            foreground_categories (list[int]): category_ids that are considered to be foreground
         """
         self.masks = masks
         self.category_ids = category_ids
