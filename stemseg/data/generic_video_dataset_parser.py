@@ -269,7 +269,8 @@ class GenericVideoSequence:
                 if instance_id in self.segmentations[t]: # self.segmentations is the mask id for the sequence
                     masks_t.append(np.ascontiguousarray(dataset[self.segmentations[t][instance_id]]))
                 else:
-                    #TODO: would be awsome if we could return just a 0.
+                    # TODO: would be awsome if we could return just a 0.
+                    # TODO: a more dirty trick would be to pass just a reference to a 0 array :D
                     # would greatly reduce the memory required
                     masks_t.append(np.zeros(self.image_dims, np.bool))
 
