@@ -191,8 +191,9 @@ class DataSourceConfigWidget(QWidget):
 
         # load from file
         conf = self.cm.load()
-        self.load_available_sequences()
-        self.cm.set(conf)
+        if conf is not None:
+            self.load_available_sequences()
+            self.cm.set(conf)
 
     def source_type_changed(self, new_type):
         print(f"data source changed to {new_type}")
@@ -259,6 +260,10 @@ class DataSourceConfigWidget(QWidget):
         # self.data_provider_changed
         if data_provider is not None:
             self.cm.save()
-            self.sequence_changed_cb(data_provider)
+            try:
+                self.sequence_changed_cb(data_provider)
+            except Exception as e:
+                print(e)
+                self.sequence_status.setText(f"failed to load sequence {e}")
         else:
             self.sequence_status.setText(f"failed to load sequence `{new_sequence}`")

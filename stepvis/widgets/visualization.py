@@ -36,7 +36,6 @@ class VisualizationWidget(QWidget):
     def sequence_changed(self, sequence):
         self.sequence = sequence
 
-        #load online
         self.preview.to_render = ImageSequenceRender(self.preview,
                                                      sequence=sequence)
         self.timeline.valueChanged.connect(self.preview.to_render.time_changed)
