@@ -252,7 +252,7 @@ class GenericVideoSequence:
                 The shape of the image masks is (height, width).
                 The first dimension is the frame indices, the second one the instance dimension.
                 The length of the returned list is the same as ``frame_idxes``.
-                The length of the lists contained in the list is the same as ``self.categories``.
+                The length of the lists contained in the list is the same as ``self.instance_categories``.
         """
         # None returns all
         if frame_idxes is None:
@@ -269,6 +269,8 @@ class GenericVideoSequence:
                 if instance_id in self.segmentations[t]: # self.segmentations is the mask id for the sequence
                     masks_t.append(np.ascontiguousarray(dataset[self.segmentations[t][instance_id]]))
                 else:
+                    #TODO: would be awsome if we could return just a 0.
+                    # would greatly reduce the memory required
                     masks_t.append(np.zeros(self.image_dims, np.bool))
 
             masks.append(masks_t)
