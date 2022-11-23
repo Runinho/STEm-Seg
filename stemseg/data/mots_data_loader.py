@@ -11,7 +11,6 @@ import random
 
 class MOTSDataLoader(VideoDataset):
     #TODO(Runinho): refactor code to not use dict arguments
-    ignore_mask_cat_id = 3
 
     def __init__(self, base_dir, vds_json_file, samples_to_create,
                  apply_augmentation=False, ignore_mask_cat_id=3, foreground_categories=[1,2]):
